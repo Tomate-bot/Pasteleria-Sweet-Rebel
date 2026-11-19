@@ -1,0 +1,14 @@
+.gradle/
+build/
+bin/
+**/node_modules/
+**/.env
+*.log
+.idea/
+.vscode/
+
+**/config-local.bat
+
+.env
+frontend/android
+frontend/capacitor.config.json

@@ -1,0 +1,13 @@
+rem COPIA este archivo como config-local.bat y escribe tus valores. config-local.bat NO se sube a GitHub.
+set DB_URL=jdbc:postgresql://localhost:5432/pasteleria
+set DB_USER=postgres
+set DB_PASSWORD=root
+set SPRING_DATASOURCE_PASSWORD=root
+set JWT_SECRET=escribe-una-frase-secreta-aleatoria-de-mas-de-32-caracteres
+set APP_URL=https://pendiente.netlify.app
+set PAYPAL_MODE=simulado
+set MAIL_HOST=smtp.gmail.com
+set MAIL_PORT=587
+set MAIL_USER=tucorreo@gmail.com
+set MAIL_PASSWORD=tu-contrasena-de-aplicacion-sin-espacios
+set MAIL_FROM=tucorreo@gmail.com

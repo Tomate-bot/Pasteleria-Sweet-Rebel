@@ -1,0 +1,20 @@
+# Todo junto: docker compose up --build   ->  http://localhost:8080
+# Con tu PostgreSQL local (por defecto): DB_URL apunta a host.docker.internal.
+# Con una base dentro de Docker:          docker compose --profile bd up --build   (ver LEEME-FINAL.md)
+services:
+  backend:
+    build: { context: ., dockerfile: Dockerfile.backend }
+    env_file: .env
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    restart: unless-stopped
+  frontend:
+    build: ./frontend
+    ports: ["8080:80"]
+    depends_on: [backend]
+    restart: unless-stopped
+  bd:
+    profiles: ["bd"]
+    image: postgres:18
+    environment: { POSTGRES_DB: pasteleria, POSTGRES_USER: postgres, POSTGRES_PASSWORD: "${DB_PASSWORD:-root}" }
+    volumes: ["./respaldo:/respaldo:ro", "./infra-docker/restaurar.sh:/docker-entrypoint-initdb.d/restaurar.sh:ro", "pgdata:/var/lib/postgresql"]
+volumes: { pgdata: {} }
