@@ -1,0 +1,6 @@
+.etapas{display:flex;align-items:center;gap:.3rem;font-size:.8rem;font-weight:700;color:#9a7a86;flex-wrap:wrap}
+.etapas span{display:inline-flex;align-items:center;gap:.25rem}.etapas span::before{content:"";width:12px;height:12px;border-radius:50%;background:#e8d3d9;border:2px solid #e8d3d9}
+.etapas .ok{color:var(--pist-o)}.etapas .ok::before{background:var(--pist-o);border-color:var(--pist-o)}.etapas .aqui{color:var(--fram-o)}.etapas .aqui::before{background:var(--fram);border-color:var(--fram)}
+.etapas i{width:14px;height:2px;background:#e8d3d9}
+.formcard{margin-bottom:1rem}.lista-sel{display:grid;gap:.3rem;margin:.4rem 0}.lista-sel button{text-align:left;background:#fff;border:2px solid var(--linea);border-radius:12px;padding:.45rem .8rem;font:600 1rem var(--sans);cursor:pointer;min-height:44px}
+.lista-sel button.sel{border-color:var(--fram);background:var(--rosa-claro)}.fila-acc.wrap{white-space:normal}

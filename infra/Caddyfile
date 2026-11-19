@@ -1,0 +1,6 @@
+# Requiere que pasteleria.test resuelva al IP local del servidor,
+# y que Caddy escuche el puerto 80 en dicho servidor.
+# SOLO para una red de laboratorio aislada (HTTP transmite JWT en claro).
+http://pasteleria.test {
+    reverse_proxy 127.0.0.1:8082
+}

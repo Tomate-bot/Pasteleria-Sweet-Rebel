@@ -1,0 +1,19 @@
+# Netlify: ajustes en el panel -> Base directory: frontend | Build command: npm run build | Publish directory: dist
+# EDITA la URL (tu dirección de Tailscale Funnel, sin "/" al final) en las DOS reglas.
+[[headers]]
+  for = "/sweet-rebel.apk"
+  [headers.values]
+    Content-Type = "application/vnd.android.package-archive"
+    Content-Disposition = "attachment; filename=sweet-rebel.apk"
+
+[[redirects]]
+  from = "/api/*"
+  to = "https://desktop-0gtmpgg.tail1a9f04.ts.net/api/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/aviso-privacidad.html"
+  to = "https://desktop-0gtmpgg.tail1a9f04.ts.net/aviso-privacidad.html"
+  status = 200
+  force = true

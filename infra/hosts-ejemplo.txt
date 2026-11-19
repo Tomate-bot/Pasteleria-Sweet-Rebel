@@ -1,0 +1,6 @@
+# EDITAR: sustituir 192.168.1.50 por la IPv4 del EQUIPO SERVIDOR.
+# Agregar esta línea en cada máquina cliente del laboratorio:
+192.168.1.50    pasteleria.test
+# Linux: /etc/hosts
+# Windows: C:\Windows\System32\drivers\etc\hosts (editar como administrador)
+# La entrada DNS/hosts NO elimina el puerto: para eso se usa Caddy en el puerto 80.

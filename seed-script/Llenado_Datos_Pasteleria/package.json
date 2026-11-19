@@ -1,0 +1,11 @@
+{
+  "name": "llenado-datos-pasteleria",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": { "seed": "node seed.js" },
+  "dependencies": {
+    "@faker-js/faker": "^9.9.0",
+    "dotenv": "^16.4.7",
+    "pg": "^8.13.1"
+  }
+}

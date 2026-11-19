@@ -1,0 +1,53 @@
+/* TEMA v3: identidad visual por rol, catálogo en tarjetas, menú tipo app en celular, orientación horizontal y vista mínima. */
+.tope{background:var(--crema) var(--confeti)}
+.marca{letter-spacing:-.02em}.hero h1{font-size:clamp(1.8rem,5vw,2.8rem)}
+.ticket{position:relative}.ticket::after{content:"🎀";position:absolute;top:-20px;right:26px;font-size:2.2rem;transform:rotate(12deg)}
+
+/* Cada rol tiene su propio color de marca */
+.app[data-rol="repostero"]{--fram:#2f6b45;--fram-o:#1f4d31;--rosa:#cfe8d5;--rosa-claro:#eaf5ed;--linea:#c3dcc9}
+.app[data-rol="repostero"] .menu{background:#1f4d31}.app[data-rol="repostero"] .menu button.on{background:#cfe8d5;color:#1f4d31}
+.app[data-rol="admin"] .toldo,.app[data-rol="admin"] .toldo::after{background:repeating-linear-gradient(90deg,var(--vino) 0 28px,var(--oro) 28px 56px)}
+.app[data-rol="admin"]{--rosa:#f3dfae;--rosa-claro:#fbf1d6;--linea:#e6d3a3}
+.app[data-rol="admin"] .menu{background:#2f0b19}
+
+/* Catálogo de productos como vitrina de tarjetas */
+.vista-productos .tabla{background:none;border:0;box-shadow:none;overflow:visible}
+.vista-productos table,.vista-productos tbody{display:block;min-width:0}
+.vista-productos thead{display:none}
+.vista-productos tbody{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:1.1rem}
+.vista-productos tbody tr,.vista-productos tbody tr:nth-child(even){display:flex;flex-direction:column;gap:.15rem;background:#fff;border:2px solid var(--linea);border-radius:22px;padding:0 0 1rem;overflow:hidden;box-shadow:0 5px 0 var(--rosa);transition:transform .15s}
+.vista-productos tbody tr:hover{transform:translateY(-3px);background:#fff}
+.vista-productos td{display:block;border:0;padding:.1rem 1rem}.vista-productos td::before{content:none}
+.vista-productos td[data-l="#"]{display:none}
+.vista-productos td[data-l="Producto"]{padding:0}
+.vista-productos .prod{display:flex;flex-direction:column;align-items:flex-start;gap:.3rem;padding:0 1rem;font:700 1.25rem var(--disp)}
+.vista-productos .prod i{display:grid;place-items:center;margin:0 -1rem .3rem;width:calc(100% + 2rem);height:120px;font-size:4rem;background:var(--rosa-claro)}
+.vista-productos td[data-l="Precio"]{font:800 1.4rem var(--disp);color:var(--fram-o)}
+.vista-productos td[data-l="Repostero"],.vista-productos td[data-l="Categoría"]{color:#7a4b5e;font-size:.9rem}
+.vista-productos td[data-l="Comprar"],.vista-productos td[data-l="Acciones"]{margin-top:.6rem;white-space:normal}
+.vista-productos td .btn{width:100%;margin:0 0 .3rem}
+
+/* Celular vertical: menú inferior estilo app */
+@media (max-width:640px) and (orientation:portrait){
+  .menu{position:fixed;top:auto;bottom:0;left:0;right:0;z-index:15;gap:0;padding:.3rem .4rem calc(.3rem + env(safe-area-inset-bottom));border-radius:18px 18px 0 0;box-shadow:0 -4px 14px rgba(74,20,40,.3)}
+  .menu button{flex-direction:column;gap:0;min-width:66px;padding:.3rem .5rem;font-size:.7rem;border-radius:12px;min-height:50px}
+  .menu button span{font-size:1.35rem;line-height:1.1}
+  .contenido{padding-bottom:6.5rem}.pie{padding-bottom:5.5rem}.toasts{bottom:calc(5.6rem + env(safe-area-inset-bottom))}
+}
+/* Horizontal en celular o tableta baja */
+@media (orientation:landscape) and (max-height:520px){
+  .toldo{height:18px}.fila-tope{padding:.2rem 1rem .5rem}.sello{width:38px;height:38px;font-size:1.2rem}.marca{font-size:1.15rem}.marca small{display:none}
+  .menu{padding-top:.2rem;padding-bottom:.2rem}.menu button{min-height:38px;padding:.25rem .8rem}
+  .contenido{padding-top:1rem}.hero{padding:.7rem 1.2rem}.hero-arte{width:84px}
+  .velo{align-items:start}.caja{max-height:92vh}
+  .entrada{grid-template-columns:1fr 1fr}.vitrina{padding:2rem 1rem 1rem}.vitrina-arte{width:min(170px,60%)}.vitrina p{display:none}.ticket{margin:.6rem 0}
+}
+/* Vista mínima (pantallas muy pequeñas, p. ej. relojes con navegador): solo consulta esencial */
+@media (max-width:280px){
+  body{font-size:14px}.toldo,.vitrina,.hero-arte,.pie,.marca small,.rol,.nota,.fila-tope>button:not(:last-child){display:none}
+  .fila-tope{padding:.3rem .5rem}.marca{font-size:1rem}.sello{width:30px;height:30px;font-size:1rem}
+  .contenido{padding:.5rem .4rem 4.5rem}h1{font-size:1.2rem}.banner{padding:.5rem;box-shadow:none}.icono-sec{width:34px;height:34px;font-size:1.1rem}
+  .atajos{grid-template-columns:1fr 1fr;gap:.4rem}.atajo{padding:.5rem .2rem}.atajo small{display:none}.atajo span{font-size:1.4rem}
+  .btn{min-height:40px;padding:.3rem .6rem;font-size:.9rem}td{padding:.15rem .5rem;font-size:.85rem}
+  .vista-productos tbody{grid-template-columns:1fr}.vista-productos .prod i{height:60px;font-size:2.2rem}
+}
