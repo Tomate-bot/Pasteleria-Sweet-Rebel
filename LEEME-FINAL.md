@@ -1,7 +1,7 @@
 # Sweet Rebel – guía final (v7)
 
 ## 1. Base de datos (una vez, en pgAdmin, base `pasteleria`)
-Si ya aplicaste las migraciones 01–06, ejecuta `sql/migracion_07_compras_reintento.sql` y luego `sql/migracion_08_stripe_checkout.sql`. Si ya aplicaste la 07, ejecuta solo la 08. Ambas son aditivas y no borran compras.
+Si ya aplicaste las migraciones 01–08, ejecuta una sola vez `sql/migracion_09_recuperacion_por_correo.sql`. Es aditiva y no borra datos.
 
 ## 2. Ejecutar
 - **Windows sin VS Code:** doble clic en `iniciar-todo.bat` → http://localhost:5173
@@ -9,9 +9,8 @@ Si ya aplicaste las migraciones 01–06, ejecuta `sql/migracion_07_compras_reint
 - **Docker (no probado aquí):** `.env` desde `.env.ejemplo` y `docker compose up --build` → http://localhost:8080
 
 ## 3. Cuentas y roles
-- **Registro público = siempre cliente**, entra de inmediato (ya no hay código por correo). Al terminar se muestra **una sola vez** un *código de recuperación*: guárdalo.
-- **Recuperar usuario o contraseña (sin correo):** "¿Olvidaste tu usuario o contraseña?" → correo + código de recuperación + contraseña nueva. Te muestra tu usuario y te da un código nuevo. 5 intentos fallidos bloquean 15 minutos.
-- Cuentas anteriores (admin, etc.): entra → **Mi cuenta → Código de recuperación** para generar el tuyo.
+- **Registro público = siempre cliente**. Al terminar puedes iniciar sesión.
+- **Recuperar contraseña:** "¿Olvidaste tu usuario o contraseña?" → escribe el correo registrado → ingresa el código de 6 dígitos recibido por correo y tu nueva contraseña. El código vence en 10 minutos, solo sirve una vez y 5 intentos fallidos bloquean durante 15 minutos. También puedes generar un código de respaldo dentro de **Mi cuenta**.
 - **Repostero:** NO se registra solo. El administrador lo crea en **Usuarios → Crear cuenta de repostero** (elige a qué repostero corresponde) y le entrega usuario y contraseña. El repostero entra por el mismo login; el sistema lo reconoce por su rol y le muestra su tablero (Por hacer / En proceso / Terminado).
 - **Administrador:** panel con resumen, Usuarios, Pedidos, Compras, Privacidad (ARCO) y **Opiniones** (resultados de la encuesta; el admin no la responde).
 
@@ -45,5 +44,5 @@ Las compras interrumpidas sin conexión quedan como borradores locales `INCOMPLE
 
 El formulario de encuesta se abre en blanco al iniciar una sesión nueva; la última respuesta continúa guardada en la base para que administración pueda consultar resultados.
 
-## 9. Correo
-Ya no se usa para registrarse ni para recuperar la cuenta. El código de `MailService` queda disponible pero sin uso.
+## 9. Recuperación por correo
+El backend envía códigos temporales mediante SMTP de Gmail. Configura `MAIL_HOST=smtp.gmail.com`, `MAIL_PORT=587`, `MAIL_USER`, `MAIL_PASSWORD` (una contraseña de aplicación de Google) y `MAIL_FROM` en `config-local.bat` o en las variables privadas del servidor backend. No uses la contraseña normal de Gmail ni pongas estos valores en Netlify si Netlify solo sirve el frontend. Reinicia el backend tras cambiar la configuración. Los códigos duran 10 minutos, se guardan como hash y se invalidan al usarse. Revisa spam si el mensaje no aparece.

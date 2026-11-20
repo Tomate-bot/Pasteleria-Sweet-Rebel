@@ -76,6 +76,10 @@ ALTER TABLE users
 -- Registro ya no pide verificar por correo: activa las cuentas que quedaron pendientes de verificar.
 UPDATE users SET enabled = TRUE
 WHERE NOT enabled AND username IN (SELECT username FROM codigo_verificacion WHERE proposito = 'REGISTRO' AND NOT usado);
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS rec_codigo_hash VARCHAR(100),
+  ADD COLUMN IF NOT EXISTS rec_codigo_expira TIMESTAMP,
+  ADD COLUMN IF NOT EXISTS rec_codigo_enviado TIMESTAMP;
 -- Ejecutar UNA vez despues de las migraciones 01..06.
 -- Conserva referencias de solicitud para que un reintento de red no duplique una compra.
 ALTER TABLE transaccion

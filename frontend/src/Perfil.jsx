@@ -95,7 +95,7 @@ export function Perfil({ ui }) {
   );
 }
 
-/** Genera (o reemplaza) el código con el que recuperas tu cuenta sin correo. Pide la contraseña actual. */
+/** Genera un código de respaldo de un solo uso. Pide la contraseña actual. */
 export function CodigoRecuperacion({ ui }) {
   const [pw, setPw] = useState('');
   const [codigo, setCodigo] = useState(null);
@@ -109,7 +109,7 @@ export function CodigoRecuperacion({ ui }) {
   return (
     <form className="tarjeta" onSubmit={generar} style={{ marginTop: '1rem' }}>
       <h3>Código de recuperación</h3>
-      <p className="nota">Si olvidas tu contraseña, con este código puedes volver a entrar sin necesitar el correo. Generar uno nuevo invalida el anterior.</p>
+      <p className="nota">Si no puedes recibir el código por correo, este código de respaldo te permite recuperar la cuenta una vez. Generar uno nuevo invalida el anterior.</p>
       {codigo && <CodigoPanel codigo={codigo} />}
       <label className="campo">Tu contraseña actual<input type="password" value={pw} onChange={(e) => setPw(e.target.value)} required autoComplete="current-password" /></label>
       <button className="btn" disabled={busy}>{busy ? 'Generando…' : 'Generar código nuevo'}</button>

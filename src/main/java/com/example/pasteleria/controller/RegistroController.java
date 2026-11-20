@@ -2,6 +2,7 @@ package com.example.pasteleria.controller;
 
 import com.example.pasteleria.model.Cliente;
 import com.example.pasteleria.repository.ClienteRepository;
+import com.example.pasteleria.service.MailService;
 import com.example.pasteleria.service.ReglasCodigo;
 import com.example.pasteleria.service.ReglasPerfil;
 import org.springframework.http.ResponseEntity;
@@ -21,21 +22,24 @@ import java.util.Map;
 import java.util.regex.Pattern;
 
 /**
- * Registro público (siempre crea un CLIENTE, entra de inmediato) y recuperación de cuenta SIN correo:
- * al registrarse se entrega UNA vez un código de recuperación (solo se guarda su hash).
+ * Registro público (siempre crea un CLIENTE) y recuperación mediante código temporal enviado por correo.
  */
 @RestController
 @RequestMapping("/api/auth")
 public class RegistroController {
     private static final Pattern USUARIO = Pattern.compile("[A-Za-z0-9_.@-]{3,50}");
-    private static final int MAX_FALLOS = 5, BLOQUEO_MIN = 15;
+    private static final int MAX_FALLOS = ReglasCodigo.MAX_INTENTOS, BLOQUEO_MIN = 15;
     private final JdbcTemplate jdbc;
     private final PasswordEncoder encoder;
     private final ClienteRepository clientes;
+    private final MailService correo;
 
-    public RegistroController(JdbcTemplate jdbc, PasswordEncoder encoder, ClienteRepository clientes) { this.jdbc = jdbc; this.encoder = encoder; this.clientes = clientes; }
+    public RegistroController(JdbcTemplate jdbc, PasswordEncoder encoder, ClienteRepository clientes, MailService correo) {
+        this.jdbc = jdbc; this.encoder = encoder; this.clientes = clientes; this.correo = correo;
+    }
 
     public record Registro(String username, String nombre, String apellidoPaterno, String apellidoMaterno, String email, String telefono, String direccion, String fechaNacimiento, String password) {}
+    public record SolicitarRecuperacion(String email) {}
     public record Restablecer(String email, String codigo, String passwordNueva) {}
     public record ConPassword(String passwordActual) {}
 
@@ -69,47 +73,89 @@ public class RegistroController {
         Integer e = jdbc.queryForObject("SELECT COUNT(*) FROM users WHERE lower(email) = ?", Integer.class, email);
         if ((e != null && e > 0) || clientes.existsByEmailIgnoreCase(email)) return msg(409, "Ese correo ya está registrado.");
 
-        String codigo = ReglasCodigo.generarRecuperacion();
-        jdbc.update("INSERT INTO users (username, password, enabled, nombre, email, nombres, apellido_paterno, apellido_materno, telefono, direccion, fecha_nacimiento, recuperacion_hash) VALUES (?,?,TRUE,?,?,?,?,?,?,?,?,?)",
+        jdbc.update("INSERT INTO users (username, password, enabled, nombre, email, nombres, apellido_paterno, apellido_materno, telefono, direccion, fecha_nacimiento) VALUES (?,?,TRUE,?,?,?,?,?,?,?,?)",
             user, encoder.encode(d.password()), completo, email, nombre, ap, am.isEmpty() ? null : am, tel.isEmpty() ? null : tel, dir.isEmpty() ? null : dir,
-            nac == null ? null : java.sql.Date.valueOf(nac), encoder.encode(ReglasCodigo.normalizarRecuperacion(codigo)));
+            nac == null ? null : java.sql.Date.valueOf(nac));
         jdbc.update("INSERT INTO authorities (username, authority) VALUES (?, 'ROLE_CLIENTE')", user);
         Cliente c = new Cliente();             // vincula la cuenta: así los derechos ARCO funcionan desde el primer día
         c.setNombre(completo); c.setEmail(email); c.setUsuario(user);
         clientes.save(c);
         jdbc.update("UPDATE cliente SET telefono = ? WHERE usuario = ?", tel.isEmpty() ? null : tel, user);
         Map<String, Object> r = new HashMap<>();
-        r.put("mensaje", "Cuenta creada. Guarda tu código de recuperación: solo se muestra ahora.");
-        r.put("username", user); r.put("codigoRecuperacion", codigo);
+        r.put("mensaje", "Cuenta creada. Ya puedes iniciar sesión.");
+        r.put("username", user);
         return ResponseEntity.status(201).body(r);
     }
 
-    /** Cambia la contraseña con correo + código de recuperación; devuelve el usuario y un código NUEVO (el anterior queda inválido). */
+    @PostMapping("/recuperar")
+    @Transactional
+    public ResponseEntity<?> solicitarRecuperacion(@RequestBody SolicitarRecuperacion d) {
+        if (d == null || !ReglasCodigo.emailValido(d.email())) return msg(400, "Escribe un correo válido.");
+        String email = d.email().trim().toLowerCase();
+        String generico = "Si existe una cuenta activa con ese correo, recibirás un código para restablecer la contraseña.";
+        List<Map<String, Object>> cuentas = jdbc.queryForList(
+            "SELECT username, rec_codigo_enviado, rec_bloqueo FROM users WHERE lower(email) = ? AND enabled FOR UPDATE", email);
+        if (cuentas.isEmpty()) return ResponseEntity.ok(Map.of("mensaje", generico));
+
+        Map<String, Object> cuenta = cuentas.get(0);
+        Timestamp bloqueo = (Timestamp) cuenta.get("rec_bloqueo");
+        if (bloqueo != null && bloqueo.toInstant().isAfter(Instant.now()))
+            return ResponseEntity.ok(Map.of("mensaje", generico));
+        Timestamp ultimaSolicitud = (Timestamp) cuenta.get("rec_codigo_enviado");
+        if (ultimaSolicitud != null && ultimaSolicitud.toInstant()
+                .plusSeconds(ReglasCodigo.ESPERA_REENVIO_SEGUNDOS).isAfter(Instant.now()))
+            return ResponseEntity.ok(Map.of("mensaje", generico));
+
+        String user = (String) cuenta.get("username");
+        String codigo = ReglasCodigo.generar();
+        Instant ahora = Instant.now();
+        jdbc.update("UPDATE users SET rec_codigo_hash = ?, rec_codigo_expira = ?, rec_codigo_enviado = ?, rec_intentos = 0, rec_bloqueo = NULL WHERE username = ?",
+            encoder.encode(codigo), Timestamp.from(ahora.plusSeconds(ReglasCodigo.VIGENCIA_MINUTOS * 60L)),
+            Timestamp.from(ahora), user);
+        String texto = "Tu código para restablecer la contraseña de Sweet Rebel es: " + codigo
+            + "\n\nEl código vence en " + ReglasCodigo.VIGENCIA_MINUTOS
+            + " minutos y solo puede utilizarse una vez. Si no solicitaste este cambio, ignora este correo.";
+        if (!correo.enviar(email, "Código para recuperar tu cuenta de Sweet Rebel", texto)) {
+            jdbc.update("UPDATE users SET rec_codigo_hash = NULL, rec_codigo_expira = NULL, rec_codigo_enviado = NULL WHERE username = ?", user);
+            return msg(503, "No se pudo enviar el correo. Inténtalo más tarde o contacta a administración.");
+        }
+        return ResponseEntity.ok(Map.of("mensaje", generico));
+    }
+
+    /** Cambia la contraseña con el código temporal enviado al correo o un código de respaldo anterior. */
     @PostMapping("/recuperar/confirmar")
     @Transactional
     public ResponseEntity<?> restablecer(@RequestBody Restablecer d) {
-        if (d == null || !ReglasCodigo.emailValido(d.email()) || vacio(d.codigo())) return msg(400, "Escribe tu correo y tu código de recuperación.");
+        if (d == null || !ReglasCodigo.emailValido(d.email()) || vacio(d.codigo())) return msg(400, "Escribe tu correo y el código que recibiste.");
         if (!ReglasCodigo.passwordValida(d.passwordNueva())) return msg(400, "La contraseña debe tener entre 12 y 100 caracteres.");
-        String generico = "El correo o el código de recuperación no son correctos.";
-        List<Map<String, Object>> f = jdbc.queryForList("SELECT username, recuperacion_hash, rec_intentos, rec_bloqueo FROM users WHERE lower(email) = ? AND enabled", d.email().trim().toLowerCase());
-        if (f.isEmpty() || f.get(0).get("recuperacion_hash") == null) return msg(400, generico);
+        String generico = "El correo o el código no son correctos, vencieron o ya fueron utilizados.";
+        List<Map<String, Object>> f = jdbc.queryForList(
+            "SELECT username, recuperacion_hash, rec_codigo_hash, rec_codigo_expira, rec_intentos, rec_bloqueo FROM users WHERE lower(email) = ? AND enabled FOR UPDATE",
+            d.email().trim().toLowerCase());
+        if (f.isEmpty()) return msg(400, generico);
         Map<String, Object> u = f.get(0);
         String user = (String) u.get("username");
         Timestamp bloqueo = (Timestamp) u.get("rec_bloqueo");
         if (bloqueo != null && bloqueo.toInstant().isAfter(Instant.now())) return msg(429, "Demasiados intentos. Espera unos minutos e inténtalo de nuevo.");
-        if (!encoder.matches(ReglasCodigo.normalizarRecuperacion(d.codigo()), (String) u.get("recuperacion_hash"))) {
+
+        String codigo = d.codigo().trim();
+        if (codigo.length() > 20) return msg(400, generico);
+        String codigoHash = (String) u.get("rec_codigo_hash");
+        Timestamp expira = (Timestamp) u.get("rec_codigo_expira");
+        boolean codigoCorreoValido = codigo.matches("\\d{6}") && codigoHash != null && expira != null
+            && !ReglasCodigo.expirado(expira.toInstant(), Instant.now()) && encoder.matches(codigo, codigoHash);
+        String codigoRespaldoHash = (String) u.get("recuperacion_hash");
+        boolean codigoRespaldoValido = codigoRespaldoHash != null
+            && encoder.matches(ReglasCodigo.normalizarRecuperacion(codigo), codigoRespaldoHash);
+        if (!codigoCorreoValido && !codigoRespaldoValido) {
             int fallos = ((Number) u.get("rec_intentos")).intValue() + 1;
             jdbc.update("UPDATE users SET rec_intentos = ?, rec_bloqueo = ? WHERE username = ?", fallos >= MAX_FALLOS ? 0 : fallos,
                 fallos >= MAX_FALLOS ? Timestamp.from(Instant.now().plusSeconds(BLOQUEO_MIN * 60L)) : null, user);
             return msg(400, generico);
         }
-        String nuevo = ReglasCodigo.generarRecuperacion();
-        // Cambiar el hash de la contraseña también invalida las sesiones abiertas.
-        jdbc.update("UPDATE users SET password = ?, recuperacion_hash = ?, rec_intentos = 0, rec_bloqueo = NULL WHERE username = ?",
-            encoder.encode(d.passwordNueva()), encoder.encode(ReglasCodigo.normalizarRecuperacion(nuevo)), user);
-        Map<String, Object> r = new HashMap<>();
-        r.put("mensaje", "Contraseña actualizada. Guarda tu nuevo código de recuperación."); r.put("username", user); r.put("codigoRecuperacion", nuevo);
-        return ResponseEntity.ok(r);
+        jdbc.update("UPDATE users SET password = ?, recuperacion_hash = NULL, rec_codigo_hash = NULL, rec_codigo_expira = NULL, rec_codigo_enviado = NULL, rec_intentos = 0, rec_bloqueo = NULL WHERE username = ?",
+            encoder.encode(d.passwordNueva()), user);
+        return ResponseEntity.ok(Map.of("mensaje", "Contraseña actualizada. Ya puedes iniciar sesión con tu nueva contraseña."));
     }
 
     /** Con sesión: genera (o regenera) el código de recuperación. Sirve a cuentas anteriores, como admin. Pide la contraseña actual. */

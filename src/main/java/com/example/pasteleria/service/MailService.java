@@ -39,7 +39,7 @@ public class MailService {
             s.send(m);
             return true;
         } catch (MailException ex) {
-            LOG.error("No se pudo enviar el correo a {}: {}", para, ex.getMessage());
+            LOG.error("No se pudo enviar el correo por SMTP: {}", ex.getClass().getSimpleName());
             return false;
         }
     }
