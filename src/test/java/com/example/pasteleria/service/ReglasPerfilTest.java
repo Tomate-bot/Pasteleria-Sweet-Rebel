@@ -17,11 +17,18 @@ class ReglasPerfilTest {
         assertEquals("5512345678", ReglasPerfil.telefono("+52 (55) 12345678"));
         assertEquals("", ReglasPerfil.telefono("  "));
         assertNull(ReglasPerfil.telefono("12345"));
+        assertNull(ReglasPerfil.telefono("55ABC45678"));
+    }
+    @Test void validaTextoParaCatalogoSinEtiquetas() {
+        assertTrue(ReglasPerfil.textoCortoValido("Panadería 2"));
+        assertFalse(ReglasPerfil.textoCortoValido("<script>alert(1)</script>"));
+        assertFalse(ReglasPerfil.descripcionValida("<b>texto</b>"));
     }
     @Test void fechaDeNacimiento() {
         LocalDate hoy = LocalDate.of(2026, 11, 18);
         assertTrue(ReglasPerfil.fechaNacimientoValida(null, hoy));
         assertTrue(ReglasPerfil.fechaNacimientoValida(LocalDate.of(2000, 5, 1), hoy));
+        assertFalse(ReglasPerfil.fechaNacimientoValida(hoy, hoy));
         assertFalse(ReglasPerfil.fechaNacimientoValida(LocalDate.of(2027, 1, 1), hoy));
         assertFalse(ReglasPerfil.fechaNacimientoValida(LocalDate.of(1800, 1, 1), hoy));
     }

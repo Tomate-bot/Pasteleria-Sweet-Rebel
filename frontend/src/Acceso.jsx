@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { api } from './api.js';
+import { fechaNacimientoMaxima } from './fecha.js';
 
 const post = (ruta, body) => api('/api/auth/' + ruta, { method: 'POST', body, auth: false });
 const VACIO = { username: '', nombre: '', apellidoPaterno: '', apellidoMaterno: '', email: '', telefono: '', direccion: '', fechaNacimiento: '', password: '', codigo: '', passwordNueva: '' };
@@ -52,22 +53,22 @@ export default function Acceso({ vista, ir }) {
       ) : modo === 'registro' ? (
         <form onSubmit={enviar('registro', reg)}>
           <p className="nota">Tu cuenta será de <b>cliente</b>. Los campos con * son obligatorios.</p>
-          {campo('username', 'Usuario *', { required: true, autoComplete: 'username', minLength: 3, maxLength: 50 })}
+          {campo('username', 'Usuario *', { required: true, autoComplete: 'username', minLength: 3, maxLength: 50, pattern: '[A-Za-z0-9_.@-]{3,50}' })}
           <div className="dos-col">{campo('nombre', 'Nombre(s) *', { required: true, maxLength: 60 })}{campo('apellidoPaterno', 'Apellido paterno *', { required: true, maxLength: 60 })}</div>
-          <div className="dos-col">{campo('apellidoMaterno', 'Apellido materno', { maxLength: 60 })}{campo('telefono', 'Teléfono (10 dígitos)', { type: 'tel', maxLength: 20 })}</div>
-          {campo('email', 'Correo *', { required: true, type: 'email' })}
+          <div className="dos-col">{campo('apellidoMaterno', 'Apellido materno', { maxLength: 60 })}{campo('telefono', 'Teléfono (10 dígitos)', { type: 'tel', maxLength: 20, inputMode: 'tel', pattern: '(\\+?52)?[0-9\\s()\\-]{10,18}', title: 'Escribe 10 dígitos; puedes agregar el prefijo +52.' })}</div>
+          {campo('email', 'Correo *', { required: true, type: 'email', maxLength: 150, autoComplete: 'email' })}
           <label className="campo">Dirección de entrega (opcional)<textarea rows="2" maxLength="250" value={v.direccion} onChange={(e) => setV({ ...v, direccion: e.target.value })} /></label>
-          {campo('fechaNacimiento', 'Fecha de nacimiento (opcional)', { type: 'date' })}
-          {campo('password', 'Contraseña * (mínimo 12 caracteres)', { required: true, type: 'password', minLength: 12, autoComplete: 'new-password' })}
+          {campo('fechaNacimiento', 'Fecha de nacimiento (opcional)', { type: 'date', max: fechaNacimientoMaxima() })}
+          {campo('password', 'Contraseña * (12 a 72 caracteres)', { required: true, type: 'password', minLength: 12, maxLength: 72, autoComplete: 'new-password' })}
           {err && <p className="error" role="alert">{err}</p>}
           <button className="btn grande" disabled={busy}>{busy ? 'Creando…' : 'Crear cuenta'}</button>
         </form>
       ) : (
         <form onSubmit={enviar('recuperar/confirmar', { email: v.email, codigo: v.codigo, passwordNueva: v.passwordNueva })}>
           <p className="nota">Escribe tu correo, el código de recuperación que te dimos al registrarte y una contraseña nueva. También te mostraremos tu usuario.</p>
-          {campo('email', 'Correo', { required: true, type: 'email' })}
+          {campo('email', 'Correo', { required: true, type: 'email', maxLength: 150, autoComplete: 'email' })}
           {campo('codigo', 'Código de recuperación (XXXX-XXXX-XXXX)', { required: true, maxLength: 20, autoCapitalize: 'characters' })}
-          {campo('passwordNueva', 'Contraseña nueva (mínimo 12 caracteres)', { required: true, type: 'password', minLength: 12, autoComplete: 'new-password' })}
+          {campo('passwordNueva', 'Contraseña nueva (12 a 72 caracteres)', { required: true, type: 'password', minLength: 12, maxLength: 72, autoComplete: 'new-password' })}
           {err && <p className="error" role="alert">{err}</p>}
           <button className="btn grande" disabled={busy}>{busy ? 'Guardando…' : 'Cambiar contraseña'}</button>
           <p className="nota">¿No tienes tu código? Pide a administración que te ayude.</p>

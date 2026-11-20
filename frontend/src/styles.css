@@ -1,5 +1,5 @@
 :root{--fondo:#fff1f3;--rosa:#f9c9d4;--rosa-claro:#fde3ea;--fram:#c4274f;--fram-o:#9c1a3c;--vino:#4a1428;--oro:#c99a3b;--oro-claro:#f3dfae;--pist:#a8d5b5;--pist-o:#2f6b45;--crema:#fffaf1;--linea:#ecc9d3;
-  --disp:"Fraunces Variable",Georgia,serif;--sans:"Nunito Variable",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --disp:"Nunito Variable",system-ui,-apple-system,"Segoe UI",sans-serif;--sans:"Nunito Variable",system-ui,-apple-system,"Segoe UI",sans-serif;
   --confeti:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cg stroke-width='5' stroke-linecap='round' opacity='.55'%3E%3Cpath d='M20 24l9 4' stroke='%23c4274f'/%3E%3Cpath d='M96 14l4 9' stroke='%23a8d5b5'/%3E%3Cpath d='M132 70l9-3' stroke='%23c99a3b'/%3E%3Cpath d='M50 98l-3 9' stroke='%23a8d5b5'/%3E%3Cpath d='M110 130l9 4' stroke='%23c4274f'/%3E%3Cpath d='M16 142l8-5' stroke='%23c99a3b'/%3E%3C/g%3E%3C/svg%3E")}
 *{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--fondo) var(--confeti);color:var(--vino);font:16px/1.6 var(--sans);padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}

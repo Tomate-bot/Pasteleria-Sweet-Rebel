@@ -4,6 +4,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import com.example.pasteleria.service.ReglasEncuesta;
 
 import java.util.List;
 import java.util.Map;
@@ -23,7 +24,8 @@ public class EncuestaController {
     public ResponseEntity<?> responder(Authentication auth, @RequestBody Respuesta d) {
         if (d == null || !estrellas(d.general()) || !estrellas(d.facilidad())) return msg(400, "Califica ambas preguntas de 1 a 5 estrellas.");
         String c = d.comentario() == null ? "" : d.comentario().trim();
-        if (c.length() > 500) return msg(400, "El comentario admite hasta 500 caracteres.");
+        if (!ReglasEncuesta.comentarioValido(c))
+            return msg(400, "El comentario admite hasta 500 caracteres y solo texto, números y puntuación común.");
         jdbc.update("INSERT INTO encuesta_satisfaccion (username, general, facilidad, comentario) VALUES (?,?,?,?) "
             + "ON CONFLICT (username) DO UPDATE SET general = EXCLUDED.general, facilidad = EXCLUDED.facilidad, comentario = EXCLUDED.comentario, creada = now()",
             auth.getName(), d.general(), d.facilidad(), c);

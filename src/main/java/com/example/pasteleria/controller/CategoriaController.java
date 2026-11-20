@@ -3,6 +3,7 @@ package com.example.pasteleria.controller;
 import com.example.pasteleria.model.Categoria;
 import com.example.pasteleria.repository.CategoriaRepository;
 import com.example.pasteleria.repository.ProductoRepository;
+import com.example.pasteleria.service.ReglasPerfil;
 import java.util.List;
 import java.util.Map;
 import org.springframework.http.ResponseEntity;
@@ -24,13 +25,14 @@ public class CategoriaController {
         return categorias.findById(id).map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
     }
     @PostMapping public ResponseEntity<?> crear(@RequestBody Categoria categoria) {
-        if (categoria.getNombre() == null || categoria.getNombre().isBlank())
-            return ResponseEntity.badRequest().body(Map.of("mensaje", "nombre es obligatorio."));
+        if (categoria == null || !ReglasPerfil.textoCortoValido(categoria.getNombre()) || categoria.getNombre().trim().length() > 80)
+            return ResponseEntity.badRequest().body(Map.of("mensaje", "nombre es obligatorio y admite texto común de hasta 80 caracteres."));
         Categoria nueva = new Categoria(); nueva.setNombre(categoria.getNombre().trim());
         return ResponseEntity.status(201).body(categorias.save(nueva));
     }
     @PutMapping("/{id}") public ResponseEntity<Categoria> editar(@PathVariable("id") Long id, @RequestBody Categoria datos) {
-        if (datos.getNombre() == null || datos.getNombre().isBlank()) return ResponseEntity.badRequest().build();
+        if (datos == null || !ReglasPerfil.textoCortoValido(datos.getNombre()) || datos.getNombre().trim().length() > 80)
+            return ResponseEntity.badRequest().build();
         return categorias.findById(id).map(c -> { c.setNombre(datos.getNombre().trim()); return ResponseEntity.ok(categorias.save(c)); })
             .orElse(ResponseEntity.notFound().build());
     }

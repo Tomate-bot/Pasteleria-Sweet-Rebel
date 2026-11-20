@@ -33,18 +33,34 @@ public class ComprasService {
     public Optional<Producto> producto(long id) { return productos.findById(id); }
     public Optional<Cliente> clienteDe(String username) { return clientes.findByUsuario(username); }
 
-    public long crear(String username, Producto p, int cantidad, BigDecimal monto, String metodo) {
+    public long crear(String username, Producto p, int cantidad, BigDecimal monto, String metodo, String clientReference) {
         var kh = new org.springframework.jdbc.support.GeneratedKeyHolder();
         jdbc.update(con -> {
             PreparedStatement ps = con.prepareStatement(
-                "INSERT INTO transaccion (username, producto_id, cantidad, monto, metodo_pago) VALUES (?,?,?,?,?)", Statement.RETURN_GENERATED_KEYS);
+                "INSERT INTO transaccion (username, producto_id, cantidad, monto, metodo_pago, client_reference) VALUES (?,?,?,?,?,?)", Statement.RETURN_GENERATED_KEYS);
             ps.setString(1, username); ps.setLong(2, p.getId()); ps.setInt(3, cantidad); ps.setBigDecimal(4, monto); ps.setString(5, metodo);
+            ps.setString(6, clientReference);
             return ps;
         }, kh);
         return ((Number) kh.getKeys().get("id")).longValue();
     }
 
-    public void guardarOrden(long id, String ordenId) { jdbc.update("UPDATE transaccion SET paypal_order_id = ?, actualizada = now() WHERE id = ?", ordenId, id); }
+    public Optional<Map<String, Object>> buscarPorReferencia(String username, String reference) {
+        List<Map<String, Object>> f = jdbc.queryForList(
+            "SELECT * FROM transaccion WHERE username = ? AND client_reference = ?", username, reference);
+        return f.isEmpty() ? Optional.empty() : Optional.of(f.get(0));
+    }
+
+    public void guardarOrden(long id, String ordenId, String checkoutUrl) {
+        jdbc.update("UPDATE transaccion SET paypal_order_id = ?, checkout_url = ?, actualizada = now() WHERE id = ?", ordenId, checkoutUrl, id);
+    }
+
+    public Map<String, Object> detalle(long id) {
+        return jdbc.queryForMap(
+            "SELECT t.id, t.username, t.producto_id AS \"productoId\", p.nombre AS producto, t.cantidad, t.monto, "
+                + "t.moneda, t.metodo_pago AS metodo, t.estado, t.pedido_id AS \"pedidoId\", t.creada, t.actualizada "
+                + "FROM transaccion t JOIN producto p ON p.id = t.producto_id WHERE t.id = ?", id);
+    }
 
     public Optional<Map<String, Object>> buscar(long id) {
         List<Map<String, Object>> f = jdbc.queryForList("SELECT * FROM transaccion WHERE id = ?", id);
@@ -81,7 +97,7 @@ public class ComprasService {
     }
 
     public List<Map<String, Object>> listar(String usernameONull) {
-        String base = "SELECT t.id, t.username, p.nombre AS producto, t.cantidad, t.monto, t.moneda, t.estado, t.metodo_pago AS \"metodo\", t.pedido_id AS \"pedidoId\", t.creada FROM transaccion t JOIN producto p ON p.id = t.producto_id ";
+        String base = "SELECT t.id, t.username, p.id AS \"productoId\", p.nombre AS producto, t.cantidad, t.monto, t.moneda, t.estado, t.metodo_pago AS \"metodo\", t.pedido_id AS \"pedidoId\", t.creada FROM transaccion t JOIN producto p ON p.id = t.producto_id ";
         return usernameONull == null ? jdbc.queryForList(base + "ORDER BY t.id DESC LIMIT 300")
             : jdbc.queryForList(base + "WHERE t.username = ? ORDER BY t.id DESC LIMIT 300", usernameONull);
     }

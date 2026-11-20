@@ -76,3 +76,14 @@ ALTER TABLE users
 -- Registro ya no pide verificar por correo: activa las cuentas que quedaron pendientes de verificar.
 UPDATE users SET enabled = TRUE
 WHERE NOT enabled AND username IN (SELECT username FROM codigo_verificacion WHERE proposito = 'REGISTRO' AND NOT usado);
+-- Ejecutar UNA vez despues de las migraciones 01..06.
+-- Conserva referencias de solicitud para que un reintento de red no duplique una compra.
+ALTER TABLE transaccion
+  ADD COLUMN IF NOT EXISTS client_reference VARCHAR(36),
+  ADD COLUMN IF NOT EXISTS checkout_url VARCHAR(1000);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_transaccion_client_reference
+  ON transaccion (client_reference)
+  WHERE client_reference IS NOT NULL;
+-- Stripe Checkout puede usar identificadores mayores a 64 caracteres.
+ALTER TABLE transaccion
+  ALTER COLUMN paypal_order_id TYPE VARCHAR(100);

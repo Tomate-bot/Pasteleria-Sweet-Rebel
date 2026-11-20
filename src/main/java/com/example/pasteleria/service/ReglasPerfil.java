@@ -7,11 +7,15 @@ import java.util.regex.Pattern;
 public final class ReglasPerfil {
     public static final int MAX_FOTO = 200_000;   // bytes; el navegador ya la reduce a ~30 KB
     private static final Pattern NOMBRE = Pattern.compile("[\\p{L}][\\p{L} .'-]{0,59}");
+    private static final Pattern TEXTO_CORTO = Pattern.compile("[\\p{L}\\p{M}\\p{N}][\\p{L}\\p{M}\\p{N} .,'&()/-]{0,149}");
+    private static final Pattern DESCRIPCION = Pattern.compile("[\\p{L}\\p{M}\\p{N}\\s.,!?¡¿:;'\"()/-]{0,300}");
     private ReglasPerfil() {}
 
     public static boolean nombreValido(String s) { return s != null && NOMBRE.matcher(s.trim()).matches(); }
+    public static boolean textoCortoValido(String s) { return s != null && TEXTO_CORTO.matcher(s.trim()).matches(); }
+    public static boolean descripcionValida(String s) { return s == null || DESCRIPCION.matcher(s).matches(); }
     public static boolean direccionValida(String s) { return s == null || s.trim().length() <= 250; }
-    public static boolean fechaNacimientoValida(LocalDate f, LocalDate hoy) { return f == null || (!f.isAfter(hoy) && f.isAfter(LocalDate.of(1900, 1, 1))); }
+    public static boolean fechaNacimientoValida(LocalDate f, LocalDate hoy) { return f == null || (f.isBefore(hoy) && f.isAfter(LocalDate.of(1900, 1, 1))); }
 
     /** @return 10 dígitos, "" si viene vacío, o null si es inválido. Acepta espacios, guiones, paréntesis y +52. */
     public static String telefono(String s) {

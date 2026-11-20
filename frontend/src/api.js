@@ -20,14 +20,19 @@ const TEXTO = {
 
 export async function api(path, { method = 'GET', body, auth = true } = {}, reintento = true) {
   let res;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
   try {
     res = await fetch(BASE + path, {
       method,
       headers: { ...(body ? { 'Content-Type': 'application/json' } : {}), ...(auth && token ? { Authorization: 'Bearer ' + token } : {}) },
       body: body ? JSON.stringify(body) : undefined,
+      signal: controller.signal,
     });
   } catch {
-    throw new ApiError(0, 'No hay conexión con el servidor. Revisa tu internet o que el sistema esté encendido, y vuelve a intentar.');
+    throw new ApiError(0, 'No hubo respuesta del servidor. Revisa tu conexión; la operación puede seguir pendiente y puedes reintentarla.');
+  } finally {
+    clearTimeout(timeout);
   }
   if (res.status === 401 && auth) {
     if (!auth || !onExpired || !reintento) throw new ApiError(401, 'Tu sesión terminó. Entra de nuevo.');

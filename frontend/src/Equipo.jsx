@@ -49,13 +49,31 @@ export function PedidosChef({ ui }) {
   const [filas, err, cargar] = useCarga('/api/chef/pedidos');
   const [abrir, setAbrir] = useState(false);
   const [mios, setMios] = useState([]);
+  const [buscaProducto, setBuscaProducto] = useState('');
+  const [errorProductos, setErrorProductos] = useState('');
   const [q, setQ] = useState('');
   const [res, setRes] = useState([]);
   const [cli, setCli] = useState(null);
   const [prod, setProd] = useState('');
   const [cant, setCant] = useState(1);
   const [busy, setBusy] = useState(false);
-  useEffect(() => { if (abrir) api('/api/chef/productos').then(setMios).catch((x) => ui.toast(x.message, 'error')); }, [abrir]);
+  useEffect(() => {
+    if (!abrir) return;
+    const termino = buscaProducto.trim();
+    if (termino.length === 1) {
+      setMios([]);
+      setErrorProductos('');
+      return;
+    }
+    let activo = true;
+    const timer = setTimeout(() => {
+      setErrorProductos('');
+      api('/api/chef/productos?q=' + encodeURIComponent(termino))
+        .then((productos) => { if (activo) setMios(productos); })
+        .catch((x) => { if (activo) setErrorProductos(x.message); });
+    }, 250);
+    return () => { activo = false; clearTimeout(timer); };
+  }, [abrir, buscaProducto]);
   useEffect(() => {
     if (q.trim().length < 2) { setRes([]); return; }
     const t = setTimeout(() => api('/api/chef/clientes?q=' + encodeURIComponent(q.trim())).then(setRes).catch(() => {}), 300);
@@ -78,13 +96,23 @@ export function PedidosChef({ ui }) {
   return (
     <section>
       <Banner icono="📋" t="Mis pedidos" sub="Pedidos de tus pasteles y la etapa en que va cada uno." />
-      <div className="acciones izq" style={{ marginTop: 0 }}><button className="btn" onClick={() => setAbrir(!abrir)}>{abrir ? 'Cerrar formulario' : 'Registrar un pedido'}</button></div>
+      <div className="acciones izq" style={{ marginTop: 0 }}><button className="btn" onClick={() => {
+        const siguiente = !abrir;
+        setAbrir(siguiente);
+        if (siguiente) { setBuscaProducto(''); setMios([]); setProd(''); }
+      }}>{abrir ? 'Cerrar formulario' : 'Registrar un pedido'}</button></div>
       {abrir && (
         <form className="tarjeta formcard" onSubmit={registrar}>
           <h3>Registrar pedido</h3>
           <label className="campo">Cliente (escribe al menos 2 letras del nombre)<input value={q} onChange={(e) => { setQ(e.target.value); setCli(null); }} /></label>
           <div className="lista-sel">{res.map((c) => <button type="button" key={c.id} className={cli?.id === c.id ? 'sel' : ''} onClick={() => setCli(c)}>{c.nombre} (#{c.id})</button>)}</div>
-          <label className="campo">Pastel<select value={prod} onChange={(e) => setProd(e.target.value)} required><option value="">Elige uno de tus pasteles…</option>{mios.map((m) => <option key={m.id} value={m.id}>{m.nombre} · {money(m.precio)}</option>)}</select></label>
+          <label className="campo">Buscar entre tus pasteles<input value={buscaProducto} maxLength="150" onChange={(e) => { setBuscaProducto(e.target.value); setMios([]); setProd(''); }} placeholder="Escribe al menos 2 letras" /></label>
+          {errorProductos && <p className="error" role="alert">{errorProductos}</p>}
+          <label className="campo">Pastel<select value={prod} onChange={(e) => setProd(e.target.value)} required>
+            <option value="">{buscaProducto.trim().length === 1 ? 'Escribe al menos 2 letras…' : 'Elige uno de tus pasteles…'}</option>
+            {mios.map((m) => <option key={m.id} value={m.id}>{m.nombre} · {money(m.precio)}</option>)}
+          </select></label>
+          <small className="nota">Solo aparecen productos asignados a tu perfil. Se muestran hasta 50 resultados; busca por nombre para encontrar otros. Si falta uno, pide a administración que te lo asigne.</small>
           <label className="campo">Cantidad (1 a 1000)<input type="number" min="1" max="1000" value={cant} onChange={(e) => setCant(e.target.value)} required /></label>
           <button className="btn" disabled={busy}>{busy ? 'Guardando…' : 'Guardar pedido'}</button>
         </form>)}
@@ -145,9 +173,10 @@ export function Usuarios({ ui }) {
       <Banner icono="👥" t="Usuarios" sub="Administra las cuentas. El registro público siempre crea clientes; las cuentas de repostero solo se crean aquí." />
       <form className="tarjeta formcard" onSubmit={crear}>
         <h3>Crear cuenta de repostero</h3>
+        <p className="nota">Primero crea la ficha en “Reposteros”. Después, selecciona esa ficha aquí y define el usuario y la contraseña con los que podrá iniciar sesión.</p>
         <div className="rejilla dos" style={{ margin: 0 }}>
-          <div>{campo('username', 'Usuario', { minLength: 3, maxLength: 50, autoComplete: 'off' })}{campo('nombre', 'Nombre completo', { maxLength: 100 })}</div>
-          <div>{campo('email', 'Correo', { type: 'email' })}{campo('password', 'Contraseña inicial (mínimo 12 caracteres)', { type: 'password', minLength: 12, autoComplete: 'new-password' })}</div>
+          <div>{campo('username', 'Usuario', { minLength: 3, maxLength: 50, pattern: '[A-Za-z0-9_.@-]{3,50}', autoComplete: 'off' })}{campo('nombre', 'Nombre completo', { maxLength: 100 })}</div>
+          <div>{campo('email', 'Correo', { type: 'email', maxLength: 150, autoComplete: 'email' })}{campo('password', 'Contraseña inicial (12 a 72 caracteres)', { type: 'password', minLength: 12, maxLength: 72, autoComplete: 'new-password' })}</div>
         </div>
         <label className="campo">Repostero al que corresponde<select value={v.reposteroId} onChange={(e) => setV({ ...v, reposteroId: e.target.value })} required>
           <option value="">Elige…</option>{reps.map((r) => <option key={r.id} value={r.id}>#{r.id} {r.nombre} ({r.ciudad})</option>)}</select></label>

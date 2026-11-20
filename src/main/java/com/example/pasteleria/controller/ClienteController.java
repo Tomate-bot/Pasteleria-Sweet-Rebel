@@ -3,6 +3,8 @@ package com.example.pasteleria.controller;
 import com.example.pasteleria.model.Cliente;
 import com.example.pasteleria.repository.ClienteRepository;
 import com.example.pasteleria.repository.PedidoRepository;
+import com.example.pasteleria.service.ReglasCodigo;
+import com.example.pasteleria.service.ReglasPerfil;
 import java.util.List;
 import java.util.Map;
 import org.springframework.http.ResponseEntity;
@@ -48,17 +50,18 @@ public class ClienteController {
     }
 
     public static String validar(DatosCliente d) {
-        if (d == null || d.nombre() == null || d.nombre().isBlank() || d.nombre().length() > 100)
+        if (d == null || d.nombre() == null || d.nombre().isBlank() || d.nombre().trim().length() > 100)
             return "nombre es obligatorio (máximo 100 caracteres).";
-        if (d.email() == null || d.email().length() > 150 || !d.email().trim().matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"))
+        if (!ReglasCodigo.emailValido(d.email()))
             return "email debe tener un formato válido (máximo 150 caracteres).";
-        if (d.telefono() != null && d.telefono().length() > 20)
-            return "telefono excede 20 caracteres.";
+        if (!ReglasPerfil.textoCortoValido(d.nombre())) return "nombre contiene caracteres no permitidos.";
+        if (ReglasPerfil.telefono(d.telefono()) == null) return "telefono debe contener 10 dígitos.";
         return null;
     }
     public static void llenar(Cliente c, DatosCliente d) {
         c.setNombre(d.nombre().trim()); c.setEmail(d.email().trim().toLowerCase());
-        c.setTelefono(d.telefono() == null ? null : d.telefono().trim());
+        String telefono = ReglasPerfil.telefono(d.telefono());
+        c.setTelefono(telefono == null || telefono.isEmpty() ? null : telefono);
     }
     public record DatosCliente(String nombre, String email, String telefono) {}
 }

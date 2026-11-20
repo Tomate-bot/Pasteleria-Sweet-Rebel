@@ -6,6 +6,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.sql.Date;
@@ -20,9 +21,11 @@ import java.util.Map;
 @RequestMapping("/api/perfil")
 public class PerfilController {
     private final JdbcTemplate jdbc;
-    public PerfilController(JdbcTemplate jdbc) { this.jdbc = jdbc; }
-    public record Datos(String nombre, String apellidoPaterno, String apellidoMaterno, String telefono, String direccion, String fechaNacimiento) {}
-    public record Foto(String imagen) {}
+    private final PasswordEncoder encoder;
+    public PerfilController(JdbcTemplate jdbc, PasswordEncoder encoder) { this.jdbc = jdbc; this.encoder = encoder; }
+    public record Datos(String nombre, String apellidoPaterno, String apellidoMaterno, String telefono, String direccion, String fechaNacimiento, String passwordActual) {}
+    public record Foto(String imagen, String passwordActual) {}
+    public record ConPassword(String passwordActual) {}
 
     private static ResponseEntity<?> msg(int s, String m) { return ResponseEntity.status(s).body(Map.of("mensaje", m)); }
 
@@ -34,8 +37,10 @@ public class PerfilController {
 
     @PutMapping
     public ResponseEntity<?> guardar(Authentication a, @RequestBody Datos d) {
-        if (d == null || !ReglasPerfil.nombreValido(d.nombre()) || !ReglasPerfil.nombreValido(d.apellidoPaterno()))
+        if (d == null || !ReglasPerfil.nombreValido(d.nombre()) || !ReglasPerfil.nombreValido(d.apellidoPaterno())
+                || d.passwordActual() == null)
             return msg(400, "Escribe tu nombre y tu apellido paterno (solo letras).");
+        if (!contrasenaCorrecta(a.getName(), d.passwordActual())) return msg(403, "La contraseña actual no coincide.");
         String nom = d.nombre().trim(), ap = d.apellidoPaterno().trim(), am = d.apellidoMaterno() == null ? "" : d.apellidoMaterno().trim();
         if (!am.isEmpty() && !ReglasPerfil.nombreValido(am)) return msg(400, "El apellido materno solo admite letras.");
         String tel = ReglasPerfil.telefono(d.telefono());
@@ -56,7 +61,8 @@ public class PerfilController {
 
     @PutMapping("/foto")
     public ResponseEntity<?> subirFoto(Authentication a, @RequestBody Foto f) {
-        if (f == null || f.imagen() == null) return msg(400, "Elige una imagen.");
+        if (f == null || f.imagen() == null || f.passwordActual() == null) return msg(400, "Elige una imagen e indica tu contraseña actual.");
+        if (!contrasenaCorrecta(a.getName(), f.passwordActual())) return msg(403, "La contraseña actual no coincide.");
         String b64 = f.imagen().contains(",") ? f.imagen().substring(f.imagen().indexOf(',') + 1) : f.imagen();
         byte[] bytes;
         try { bytes = Base64.getDecoder().decode(b64); } catch (IllegalArgumentException e) { return msg(400, "La imagen no es válida."); }
@@ -75,8 +81,15 @@ public class PerfilController {
     }
 
     @DeleteMapping("/foto")
-    public ResponseEntity<?> quitarFoto(Authentication a) {
+    public ResponseEntity<?> quitarFoto(Authentication a, @RequestBody(required = false) ConPassword d) {
+        if (d == null || d.passwordActual() == null) return msg(400, "Indica tu contraseña actual.");
+        if (!contrasenaCorrecta(a.getName(), d.passwordActual())) return msg(403, "La contraseña actual no coincide.");
         jdbc.update("UPDATE users SET foto = NULL, foto_tipo = NULL WHERE username = ?", a.getName());
         return msg(200, "Foto eliminada.");
+    }
+
+    private boolean contrasenaCorrecta(String username, String password) {
+        String hash = jdbc.queryForObject("SELECT password FROM users WHERE username = ?", String.class, username);
+        return hash != null && encoder.matches(password, hash);
     }
 }

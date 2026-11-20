@@ -1,9 +1,7 @@
 # Sweet Rebel – guía final (v7)
 
 ## 1. Base de datos (una vez, en pgAdmin, base `pasteleria`)
-Tu respaldo `pasteleriav2.sql` ya trae las migraciones 01 y 02. Ejecuta en orden las que falten:
-`sql/migracion_03_metodo_pago_encuesta.sql`, `04_repostero_usuarios`, `05_perfil_ampliado` y **`06_recuperacion_sin_correo`** (esta última activa las cuentas que quedaron pendientes de verificar por correo).
-`sql/actualizacion_completa.sql` junta 01–06 si empiezas desde cero. Guarda una copia de tu respaldo.
+Si ya aplicaste las migraciones 01–06, ejecuta `sql/migracion_07_compras_reintento.sql` y luego `sql/migracion_08_stripe_checkout.sql`. Si ya aplicaste la 07, ejecuta solo la 08. Ambas son aditivas y no borran compras.
 
 ## 2. Ejecutar
 - **Windows sin VS Code:** doble clic en `iniciar-todo.bat` → http://localhost:5173
@@ -37,7 +35,15 @@ Computadora (barra lateral para administración y repostero), tableta, celular v
 Frontend gratis en Netlify o Cloudflare Pages (`frontend/netlify.toml`, `frontend/functions/`) y backend con `tailscale funnel --bg 8082`. Un `.com` no es gratuito; la alternativa es el subdominio de la plataforma.
 
 ## 8. Pagos
-PayPal está integrado (`PayPalService`, `PAYPAL_MODE=sandbox|live`). Stripe, Mercado Pago y OXXO no cobran: su conexión real iría en `ComprasController.crear/capturar` (bloque `"SIM-"`) y en el componente `Comprar` de `frontend/src/App.jsx`. El pie de página indica que es un proyecto escolar sin cobros reales.
+PayPal usa `PAYPAL_MODE=sandbox|live` y requiere `PAYPAL_CLIENT_ID` y `PAYPAL_CLIENT_SECRET`. Mercado Pago Checkout Pro requiere `MERCADOPAGO_ACCESS_TOKEN`. Stripe Checkout usa `STRIPE_SECRET_KEY` para tarjeta; habilita tarjeta y OXXO en los métodos de pago del Dashboard de Stripe. La app usa el filtro dinámico de métodos permitido por la API actual de Checkout. OXXO requiere además `STRIPE_WEBHOOK_SECRET` y configurar en Stripe el endpoint público `https://TU_API/api/stripe/webhook` con los eventos `checkout.session.completed`, `checkout.session.async_payment_succeeded` y `checkout.session.async_payment_failed`. OXXO no se ofrecerá si falta el webhook, porque el pago se confirma de forma asíncrona.
+
+Prueba primero con credenciales sandbox y cuentas de prueba de cada proveedor. Las claves van solo en el entorno del backend (`config-local.bat` o `.env`), nunca en el frontend ni en GitHub. La app muestra cada pasarela solo cuando su configuración requerida está presente; no simula cobros.
+
+Administración puede consultar el estado desde **Pasarelas** en el panel, pero no puede guardar secretos desde el navegador. En local, copia `config-local.bat.ejemplo` como `config-local.bat`, completa las variables y reinicia con `iniciar-todo.bat`. En producción, agrega las variables en el servicio donde se ejecuta Spring Boot y reinícialo o vuelve a desplegarlo; si Netlify solo sirve el frontend, no las agregues allí. Para OXXO registra en Stripe el webhook `https://TU_API/api/stripe/webhook` con los eventos indicados arriba.
+
+Las compras interrumpidas sin conexión quedan como borradores locales `INCOMPLETA`; al reintentar, el usuario es enviado a la pasarela activa. Solo el backend puede pasar una compra a `PAGADA` después de confirmar el pago con la pasarela. Aplica las migraciones 07 y 08 antes de arrancar esta versión.
+
+El formulario de encuesta se abre en blanco al iniciar una sesión nueva; la última respuesta continúa guardada en la base para que administración pueda consultar resultados.
 
 ## 9. Correo
 Ya no se usa para registrarse ni para recuperar la cuenta. El código de `MailService` queda disponible pero sin uso.

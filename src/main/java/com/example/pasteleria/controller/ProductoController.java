@@ -6,6 +6,7 @@ import com.example.pasteleria.repository.CategoriaRepository;
 import com.example.pasteleria.repository.ProductoRepository;
 import com.example.pasteleria.repository.PedidoRepository;
 import com.example.pasteleria.repository.ReposteroRepository;
+import com.example.pasteleria.service.ReglasPerfil;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
@@ -45,7 +46,10 @@ public class ProductoController {
     }
 
     private ResponseEntity<?> validar(DatosProducto d) {
-        if (d == null || d.nombre() == null || d.nombre().isBlank() || d.precio() == null || d.precio().compareTo(BigDecimal.ZERO) < 0 || d.reposteroId() == null || d.categoriaId() == null)
+        if (d == null || !ReglasPerfil.textoCortoValido(d.nombre()) || d.nombre().trim().length() > 150
+                || d.precio() == null || d.precio().compareTo(BigDecimal.ZERO) <= 0
+                || d.precio().scale() > 2 || !ReglasPerfil.descripcionValida(d.descripcion())
+                || d.reposteroId() == null || d.categoriaId() == null)
             return ResponseEntity.badRequest().body(Map.of("mensaje", "Indica nombre, precio válido, reposteroId y categoriaId."));
         if (!reposteros.existsById(d.reposteroId()) || !categorias.existsById(d.categoriaId()))
             return ResponseEntity.badRequest().body(Map.of("mensaje", "El repostero o categoría no existe."));
@@ -54,7 +58,7 @@ public class ProductoController {
         return null;
     }
     private void llenar(Producto p, DatosProducto d) {
-        p.setNombre(d.nombre()); p.setDescripcion(d.descripcion()); p.setPrecio(d.precio());
+        p.setNombre(d.nombre().trim()); p.setDescripcion(d.descripcion() == null ? null : d.descripcion().trim()); p.setPrecio(d.precio());
         p.setRepostero(reposteros.findById(d.reposteroId()).orElseThrow());
         p.setCategoria(categorias.findById(d.categoriaId()).orElseThrow());
     }

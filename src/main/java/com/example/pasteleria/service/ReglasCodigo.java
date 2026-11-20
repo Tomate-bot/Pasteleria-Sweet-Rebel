@@ -1,6 +1,7 @@
 package com.example.pasteleria.service;
 
 import java.security.SecureRandom;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.regex.Pattern;
 
@@ -26,7 +27,10 @@ public final class ReglasCodigo {
 
     public static String generar() { return String.format("%06d", AZAR.nextInt(1_000_000)); }
     public static boolean emailValido(String e) { return e != null && e.trim().length() <= 150 && EMAIL.matcher(e.trim()).matches(); }
-    public static boolean passwordValida(String p) { return p != null && p.length() >= 12 && p.length() <= 100; }
+    public static boolean passwordValida(String p) {
+        return p != null && p.length() >= 12 && p.length() <= 100
+            && p.getBytes(StandardCharsets.UTF_8).length <= 72;
+    }
     public static boolean expirado(Instant expira, Instant ahora) { return !ahora.isBefore(expira); }
     public static boolean sinIntentos(int usados) { return usados >= MAX_INTENTOS; }
 }

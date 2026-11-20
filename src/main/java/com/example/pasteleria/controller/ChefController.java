@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
@@ -60,9 +61,15 @@ public class ChefController {
     }
 
     @GetMapping("/productos")
-    public ResponseEntity<?> misProductos(Authentication a) {
+    public ResponseEntity<?> misProductos(Authentication a, @RequestParam(defaultValue = "") String q) {
         Optional<Long> id = miId(a);
-        return id.isEmpty() ? SIN_PERFIL : ResponseEntity.ok(jdbc.queryForList("SELECT id, nombre, precio FROM producto WHERE id_repostero = ? ORDER BY nombre LIMIT 300", id.get()));
+        if (id.isEmpty()) return SIN_PERFIL;
+        if (q.length() > 150) return msg(400, "La búsqueda admite hasta 150 caracteres.");
+        String termino = q.trim().toLowerCase(Locale.ROOT).replace("%", "").replace("_", "");
+        if (termino.length() == 1) return ResponseEntity.ok(List.of());
+        return ResponseEntity.ok(jdbc.queryForList(
+            "SELECT id, nombre, precio FROM producto WHERE id_repostero = ? AND lower(nombre) LIKE ? ORDER BY nombre LIMIT 50",
+            id.get(), "%" + termino + "%"));
     }
 
     /** Búsqueda mínima de clientes (solo id y nombre; sin correo ni teléfono). */

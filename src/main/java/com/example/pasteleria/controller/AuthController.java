@@ -3,6 +3,7 @@ package com.example.pasteleria.controller;
 import com.example.pasteleria.model.Cliente;
 import com.example.pasteleria.repository.ClienteRepository;
 import com.example.pasteleria.security.JwtService;
+import com.example.pasteleria.service.ReglasPerfil;
 import java.nio.charset.StandardCharsets;
 import java.security.Principal;
 import java.util.List;
@@ -83,12 +84,15 @@ public class AuthController {
     @PutMapping("/perfil")
     @Transactional
     public ResponseEntity<?> actualizarPerfil(Principal principal, @RequestBody DatosPerfil datos) {
-        if (datos == null || datos.nombre() == null || datos.nombre().isBlank()
-                || datos.nombre().trim().length() > 100) {
+        if (datos == null || !ReglasPerfil.textoCortoValido(datos.nombre())
+                || datos.nombre().trim().length() > 100 || datos.passwordActual() == null) {
             return ResponseEntity.badRequest().body(Map.of(
-                "mensaje", "nombre es obligatorio (máximo 100 caracteres)."));
+                "mensaje", "nombre y passwordActual son obligatorios (máximo 100 caracteres)."));
         }
         String username = principal.getName();
+        UserDetails cuenta = usuarios.loadUserByUsername(username);
+        if (!encoder.matches(datos.passwordActual(), cuenta.getPassword()))
+            return ResponseEntity.status(403).body(Map.of("mensaje", "La contraseña actual no coincide."));
         String nombre = datos.nombre().trim();
         Optional<Cliente> cliente = clientes.findByUsuario(username);
         if (cliente.isPresent()) {
@@ -169,7 +173,7 @@ public class AuthController {
                 "mensaje", "passwordActual y passwordNueva son obligatorios."));
         }
         String nueva = datos.passwordNueva();
-        if (nueva.length() < 12 || nueva.getBytes(StandardCharsets.UTF_8).length > 72) {
+        if (nueva.length() < 12 || nueva.length() > 100 || nueva.getBytes(StandardCharsets.UTF_8).length > 72) {
             return ResponseEntity.badRequest().body(Map.of(
                 "mensaje", "La nueva contraseña debe tener al menos 12 caracteres y máximo 72 bytes UTF-8."));
         }
@@ -194,7 +198,7 @@ public class AuthController {
     }
 
     public record Credenciales(String username, String password) {}
-    public record DatosPerfil(String nombre) {}
+    public record DatosPerfil(String nombre, String passwordActual) {}
     public record CambioPassword(String passwordActual, String passwordNueva) {}
     public record CambioUsuario(String usernameNuevo, String passwordActual) {}
     public record VistaPerfil(String username, String nombre, List<String> roles) {}

@@ -3,6 +3,7 @@ package com.example.pasteleria.controller;
 import com.example.pasteleria.model.Repostero;
 import com.example.pasteleria.repository.ProductoRepository;
 import com.example.pasteleria.repository.ReposteroRepository;
+import com.example.pasteleria.service.ReglasPerfil;
 import java.util.List;
 import java.util.Map;
 import org.springframework.http.ResponseEntity;
@@ -29,8 +30,9 @@ public class ReposteroController {
         }).orElse(ResponseEntity.notFound().build());
     }
     @PostMapping public ResponseEntity<?> crear(@RequestBody Repostero datos) {
-        if (datos.getNombre() == null || datos.getNombre().isBlank() || datos.getCiudad() == null || datos.getCiudad().isBlank())
-            return ResponseEntity.badRequest().body(Map.of("mensaje", "nombre y ciudad son obligatorios."));
+        if (datos == null || !ReglasPerfil.textoCortoValido(datos.getNombre()) || datos.getNombre().trim().length() > 100
+                || !ReglasPerfil.textoCortoValido(datos.getCiudad()) || datos.getCiudad().trim().length() > 100)
+            return ResponseEntity.badRequest().body(Map.of("mensaje", "nombre y ciudad son obligatorios y deben ser texto válido."));
         Repostero nuevo = new Repostero();
         nuevo.setNombre(datos.getNombre().trim()); nuevo.setCiudad(datos.getCiudad().trim());
         return ResponseEntity.status(201).body(reposteros.save(nuevo));
@@ -38,9 +40,10 @@ public class ReposteroController {
     @PutMapping("/{id}") public ResponseEntity<?> editar(@PathVariable("id") Long id, @RequestBody Repostero datos) {
         return reposteros.findById(id).map(r -> {
             if (r.isBloqueado()) return ResponseEntity.status(403).body(Map.of("mensaje", "No se puede rectificar: el repostero se opuso al tratamiento."));
-            if (datos.getNombre() == null || datos.getNombre().isBlank() || datos.getCiudad() == null || datos.getCiudad().isBlank())
-                return ResponseEntity.badRequest().body(Map.of("mensaje", "nombre y ciudad son obligatorios."));
-            r.setNombre(datos.getNombre()); r.setCiudad(datos.getCiudad());
+            if (datos == null || !ReglasPerfil.textoCortoValido(datos.getNombre()) || datos.getNombre().trim().length() > 100
+                    || !ReglasPerfil.textoCortoValido(datos.getCiudad()) || datos.getCiudad().trim().length() > 100)
+                return ResponseEntity.badRequest().body(Map.of("mensaje", "nombre y ciudad son obligatorios y deben ser texto válido."));
+            r.setNombre(datos.getNombre().trim()); r.setCiudad(datos.getCiudad().trim());
             return ResponseEntity.ok(reposteros.save(r));
         }).orElse(ResponseEntity.notFound().build());
     }

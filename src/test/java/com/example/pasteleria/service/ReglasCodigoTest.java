@@ -16,6 +16,7 @@ class ReglasCodigoTest {
     @Test void exigeContrasenaDeDoceCaracteres() {
         assertFalse(ReglasCodigo.passwordValida("corta123"));
         assertTrue(ReglasCodigo.passwordValida("una-clave-larga-1"));
+        assertFalse(ReglasCodigo.passwordValida("ñ".repeat(37)));
     }
     @Test void elCodigoVenceExactamenteEnLaFechaDeExpiracion() {
         Instant t = Instant.parse("2026-01-01T10:00:00Z");

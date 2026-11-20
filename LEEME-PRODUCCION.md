@@ -1,37 +1,26 @@
-# Pastelería – guía de ejecución y pruebas (v3)
+# Sweet Rebel – guía de ejecución y pruebas
 
-## 1. Base de datos
-Tu respaldo `pasteleriav2.sql` ya incluye las migraciones 01 y 02. Solo falta ejecutar en pgAdmin (Query Tool, base `pasteleria`):
-`sql/migracion_03_metodo_pago_encuesta.sql`  (método de pago + encuesta). Es aditivo y no borra datos.
-(`sql/actualizacion_completa.sql` junta las tres migraciones por si empiezas desde una base sin ellas.)
+Consulta [LEEME-FINAL.md](LEEME-FINAL.md) para el procedimiento completo de ejecución, cuentas, publicación e instalación.
 
-## 2. Correo real (Gmail con contraseña de aplicación)
-1. Copia `config-local.bat.ejemplo` como `config-local.bat` y escribe tus datos: `MAIL_HOST=smtp.gmail.com`, `MAIL_PORT=587`, `MAIL_USER`, `MAIL_PASSWORD` (16 letras, sin espacios), `MAIL_FROM` (el mismo Gmail).
-2. **Ya no existe `MAIL_ENABLED` ni el modo que escribía el código en la terminal.** Si faltan MAIL_HOST/USER/PASSWORD, el registro responde "No pudimos enviar el correo" y en el log solo aparece qué variable falta; el código nunca se imprime.
-3. `config-local.bat` está en `.gitignore`: tus claves no se suben a GitHub.
+## Base de datos
 
-## 3. Ejecutar sin abrir VS Code
-Doble clic en `iniciar-todo.bat`: abre dos ventanas (backend en :8082 y frontend en http://localhost:5173).
-Requisitos: Java 17+, Node 20+, PostgreSQL encendido.  Pruebas: `gradlew.bat test`.
+En una instalación existente, aplica `sql/migracion_07_compras_reintento.sql` después de las migraciones 01–06 y `sql/migracion_08_stripe_checkout.sql` después de la 07, antes de arrancar esta versión. Son aditivas y no eliminan compras.
 
-## 4. Probar cada rol
-- **Administrador** (`admin` / tu contraseña actual): ve CRUD completo, Clientes, Pedidos, Compras de todos (con reembolso), Privacidad (ARCO) y los resultados de la Encuesta.
-- **Cliente** (regístrate en "Crear cuenta nueva", llega un código a tu correo): ve Productos, Tipos de postre, Mis compras, Encuesta y Mi cuenta. No ve ARCO, CRUD, Reposteros ni administración.
-- **Solo consulta** (`pollito123`): ve el catálogo y la encuesta, sin botones de cambio.
-- **Repostero:** NO está implementado todavía (ver sección 7).
+## Ejecución y pruebas
 
-## 5. Compra con los 4 métodos (simulados)
-Productos → **Comprar** → elige PayPal, Tarjeta (Stripe), Mercado Pago u OXXO → pantalla de pago simulada → pagar. Marca "Simular que el pago es rechazado" para ver el estado *Fallida*. No se cobra nada ni se envían datos de tarjeta.
-La conexión real iría en `ComprasController.crear/capturar` (bloque `"SIM-"`) y en el componente `Comprar` de `frontend/src/App.jsx`. PayPal ya tiene integración real lista (`PayPalService`, `PAYPAL_MODE=sandbox|live`). Stripe, Mercado Pago y OXXO solo se aceptan mientras `PAYPAL_MODE=simulado`.
+- Windows: doble clic en `iniciar-todo.bat`.
+- Pruebas backend: `.\gradlew.bat test`.
+- Compilación frontend: desde `frontend`, ejecuta `npm run build`.
 
-## 6. Encuesta de satisfacción
-Menú **Encuesta** (todos los roles): 2 preguntas de 1 a 5 estrellas + comentario opcional; una respuesta por usuario, editable. El administrador ve promedios y comentarios en la misma pantalla.
+Necesitas Java 17+, Node.js y PostgreSQL. Revisa `config-local.bat.ejemplo` y `.env.ejemplo`; conserva las credenciales reales solo en los archivos locales ignorados por Git.
 
-## 7. Pendiente en esta entrega
-Rol repostero (y su logística de pedidos), gestión de usuarios y tokens por el administrador, registro con apellidos/teléfono/dirección/foto, rediseño completo de cada panel y vista de reloj. Docker no se incluye.
+## Compras y pagos
 
-## 8. Publicar y dominio
-- Frontend gratis: Netlify o Cloudflare Pages (ver `frontend/netlify.toml` y `frontend/functions/`) con subdominio `.netlify.app` / `.pages.dev`.
-- Un dominio `.com` **no es gratuito** (se paga anualmente); la alternativa gratuita real es el subdominio de la plataforma.
-- El backend sigue en tu PC: se expone con Tailscale Funnel (`tailscale funnel --bg 8082`). Render/Railway para el backend Java no los verifiqué, así que no los recomiendo todavía.
-- App instalable: botón "Instalar app" (PWA). **No se genera APK** (requiere herramientas de Android que no tengo aquí).
+- Si el dispositivo pierde conexión antes de enviar la compra, se guarda localmente como `INCOMPLETA`; no se cobra de forma automática al volver internet.
+- Al reintentar, el servidor conserva la compra como `PENDIENTE` hasta confirmar el pago. Los detalles se muestran en un diálogo dentro de la aplicación, sin abrir otra pestaña.
+- PayPal requiere `PAYPAL_MODE=sandbox|live`, `PAYPAL_CLIENT_ID` y `PAYPAL_CLIENT_SECRET`. Mercado Pago Checkout Pro requiere `MERCADOPAGO_ACCESS_TOKEN`.
+- Stripe Checkout admite tarjeta con `STRIPE_SECRET_KEY`; habilita los métodos de pago (tarjeta y, si aplica, OXXO) en la configuración de Stripe. La aplicación filtra los métodos permitidos usando la API actual de Checkout. Para ofrecer OXXO también configura `STRIPE_WEBHOOK_SECRET` y registra en Stripe el endpoint público `https://TU_API/api/stripe/webhook` para los eventos `checkout.session.completed`, `checkout.session.async_payment_succeeded` y `checkout.session.async_payment_failed`. OXXO permanece deshabilitado sin el webhook porque sus pagos se confirman de forma asíncrona.
+- Usa credenciales sandbox y compradores de prueba para validar cada pasarela. No publiques claves en el frontend ni en GitHub; guárdalas únicamente en la configuración privada del backend.
+- Administración puede consultar el estado desde **Pasarelas**, pero no introducir secretos en la página. En local, copia `config-local.bat.ejemplo` como `config-local.bat`, configura las variables y reinicia el backend. En producción, configúralas en el servicio que ejecuta Spring Boot (no en Netlify si solo aloja el frontend) y reinícialo o vuelve a desplegarlo.
+
+Las credenciales de las pasarelas deben permanecer en el backend, nunca en el frontend ni en GitHub. Las integraciones sandbox no se consideran probadas hasta completar un flujo con las credenciales de prueba del propietario.

@@ -31,7 +31,8 @@ public class SecurityConfig {
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(reglas -> reglas
                 .requestMatchers("/api/auth/login", "/api/auth/registro", "/api/auth/verificar", "/api/auth/reenviar",
-                    "/api/auth/recuperar", "/api/auth/recuperar/confirmar", "/api/paypal/webhook", "/aviso-privacidad.html", "/error").permitAll()
+                    "/api/auth/recuperar", "/api/auth/recuperar/confirmar", "/api/paypal/webhook", "/api/stripe/webhook",
+                    "/aviso-privacidad.html", "/error").permitAll()
                 // Los tres roles pueden acceder a su propio perfil y cambiar su contraseña.
                 .requestMatchers("/api/auth/perfil", "/api/auth/cambiar-password", "/api/auth/cambiar-usuario").authenticated()
                 .requestMatchers("/api/compras", "/api/compras/**").hasAnyRole("ADMIN", "CLIENTE")

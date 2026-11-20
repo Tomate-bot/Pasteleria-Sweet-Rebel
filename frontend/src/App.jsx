@@ -3,7 +3,7 @@ import { api, login, setToken, hasToken, setExpiredHandler } from './api.js';
 import Acceso from './Acceso.jsx';
 import { Postre } from './Postres.jsx';
 import { InicioCliente, InicioAdmin } from './Tienda.jsx';
-import { Perfil, Avatar } from './Perfil.jsx';
+import { Perfil, Avatar, CodigoRecuperacion } from './Perfil.jsx';
 import { PedidosChef, PastelesChef, InicioChef, Usuarios } from './Equipo.jsx';
 import { Pastel, ICONO, emojiDe } from './Arte.jsx';
 
@@ -51,16 +51,16 @@ function Confirm({ o, onClose }) {
   );
 }
 
-function Modal({ title, children, onClose }) {
+function Modal({ title, children, onClose, className = '' }) {
   useEffect(() => {
     const f = (e) => e.key === 'Escape' && onClose?.();
     window.addEventListener('keydown', f);
     return () => window.removeEventListener('keydown', f);
   }, [onClose]);
   return (
-    <div className="velo" role="dialog" aria-modal="true" aria-label={title}>
-      <div className="caja">
-        <h2>{title}</h2>
+    <div className="velo" role="dialog" aria-modal="true" aria-label={title} onMouseDown={(e) => { if (e.target === e.currentTarget) onClose?.(); }}>
+      <div className={`caja ${className}`}>
+        <header className="modal-cabecera"><h2>{title}</h2><button type="button" className="modal-cerrar" aria-label="Cerrar ventana" onClick={onClose}>×</button></header>
         {children}
       </div>
     </div>
@@ -91,8 +91,8 @@ function Login({ onIn }) {
         <div className="logo" aria-hidden="true">🧁</div>
         <h1>Bienvenido a Sweet Rebel</h1>
         <p className="sub">Entra para ver el catálogo y los pedidos.</p>
-        <label className="campo">Usuario<input value={u} onChange={(e) => setU(e.target.value)} autoComplete="username" required autoFocus /></label>
-        <label className="campo">Contraseña<input type="password" value={p} onChange={(e) => setP(e.target.value)} autoComplete="current-password" required /></label>
+        <label className="campo">Usuario<input value={u} onChange={(e) => setU(e.target.value)} autoComplete="username" minLength="3" maxLength="50" pattern="[A-Za-z0-9_.@-]{3,50}" required autoFocus /></label>
+        <label className="campo">Contraseña<input type="password" value={p} onChange={(e) => setP(e.target.value)} autoComplete="current-password" maxLength="100" required /></label>
         {err && <p className="error" role="alert">{err}</p>}
         <button className="btn grande" disabled={busy}>{busy ? 'Entrando…' : 'Entrar'}</button>
         <div className="enlaces">
@@ -118,7 +118,7 @@ function ReLogin({ user, onDone, onExit }) {
       <form onSubmit={ir}>
         <p>Por seguridad la sesión dura una hora. Escribe tu contraseña para seguir: <b>no perderás lo que estabas haciendo</b>.</p>
         <p className="nota">Usuario: <b>{user}</b></p>
-        <label className="campo">Contraseña<input type="password" value={p} onChange={(e) => setP(e.target.value)} autoFocus required /></label>
+        <label className="campo">Contraseña<input type="password" value={p} onChange={(e) => setP(e.target.value)} maxLength="100" autoComplete="current-password" autoFocus required /></label>
         {err && <p className="error" role="alert">{err}</p>}
         <div className="acciones">
           <button type="button" className="btn suave" onClick={onExit}>Salir</button>
@@ -156,9 +156,9 @@ const RES = {
   productos: {
     t: 'Productos', uno: 'producto', solo: 'Pasteles y postres a la venta.',
     campos: [
-      { k: 'nombre', l: 'Nombre', req: 1 },
+      { k: 'nombre', l: 'Nombre', req: 1, maxLength: 150 },
       { k: 'descripcion', l: 'Descripción', tipo: 'area' },
-      { k: 'precio', l: 'Precio (MXN)', tipo: 'num', step: '0.01', req: 1 },
+      { k: 'precio', l: 'Precio (MXN)', tipo: 'num', step: '0.01', min: '0.01', req: 1 },
       { k: 'reposteroId', l: 'Número del repostero', tipo: 'ref', ref: 'reposteros', req: 1 },
       { k: 'categoriaId', l: 'Número del tipo de postre', tipo: 'ref', ref: 'categorias', req: 1 },
     ],
@@ -168,13 +168,13 @@ const RES = {
   },
   categorias: {
     t: 'Tipos de postre', uno: 'tipo de postre', solo: 'Así se agrupan los productos del catálogo: tartas, galletas, pan dulce…',
-    campos: [{ k: 'nombre', l: 'Nombre del tipo (por ejemplo: Tartas)', req: 1 }],
+    campos: [{ k: 'nombre', l: 'Nombre del tipo (por ejemplo: Tartas)', req: 1, maxLength: 80 }],
     cols: [['#', (r) => r.id], ['Tipo de postre', (r) => <span className="prod"><Postre nombre={r.nombre} />{r.nombre}</span>]],
     aForm: (r) => ({ nombre: r.nombre }),
   },
   reposteros: {
-    t: 'Reposteros', uno: 'repostero', solo: 'Las personas que preparan los productos.',
-    campos: [{ k: 'nombre', l: 'Nombre', req: 1 }, { k: 'ciudad', l: 'Ciudad', req: 1 }],
+    t: 'Reposteros', uno: 'repostero', solo: 'Fichas de las personas que preparan los productos. Para permitirles iniciar sesión, crea una cuenta vinculada desde Usuarios.',
+    campos: [{ k: 'nombre', l: 'Nombre', req: 1, maxLength: 100 }, { k: 'ciudad', l: 'Ciudad', req: 1, maxLength: 100 }],
     cols: [['#', (r) => r.id], ['Nombre', (r) => r.nombre], ['Ciudad', (r) => r.ciudad]],
     aForm: (r) => ({ nombre: r.nombre, ciudad: r.ciudad }),
     extra: {
@@ -190,7 +190,7 @@ const RES = {
   },
   clientes: {
     t: 'Clientes', uno: 'cliente', solo: 'Personas que hacen pedidos.', admin: 1,
-    campos: [{ k: 'nombre', l: 'Nombre', req: 1 }, { k: 'email', l: 'Correo', tipo: 'email', req: 1 }, { k: 'telefono', l: 'Teléfono' }],
+    campos: [{ k: 'nombre', l: 'Nombre', req: 1, maxLength: 100 }, { k: 'email', l: 'Correo', tipo: 'email', req: 1, maxLength: 150 }, { k: 'telefono', l: 'Teléfono', tipo: 'tel', maxLength: 20, pattern: '(\\+?52)?[0-9\\s()\\-]{10,18}', inputMode: 'tel', title: 'Escribe 10 dígitos; puedes agregar el prefijo +52.' }],
     cols: [['#', (r) => r.id], ['Nombre', (r) => r.nombre], ['Correo', (r) => r.email], ['Teléfono', (r) => r.telefono || '—'], ['Estado', (r) => <span className={'pildora ' + estadoCli(r)}>{estadoCli(r)}</span>]],
     aForm: (r) => ({ nombre: r.nombre, email: r.email, telefono: r.telefono || '' }),
     bloqueaEditar: (r) => r.cancelado,
@@ -200,7 +200,7 @@ const RES = {
     campos: [
       { k: 'clienteId', l: 'Número del cliente', tipo: 'ref', ref: 'clientes', req: 1 },
       { k: 'productoId', l: 'Número del producto', tipo: 'ref', ref: 'productos', req: 1 },
-      { k: 'cantidad', l: 'Cantidad (1 a 1000)', tipo: 'num', min: 1, max: 1000, req: 1 },
+      { k: 'cantidad', l: 'Cantidad (1 a 1000)', tipo: 'num', min: 1, max: 1000, step: 1, req: 1 },
       { k: 'estado', l: 'Estado', tipo: 'sel', op: ['PENDIENTE', 'PREPARANDO', 'ENTREGADO', 'CANCELADO'], req: 1 },
     ],
     cols: [['#', (r) => r.id], ['Cliente', (r) => r.cliente?.nombre], ['Producto', (r) => r.producto?.nombre], ['Cant.', (r) => r.cantidad],
@@ -212,18 +212,20 @@ const RES = {
 
 function RefInput({ f, v, set }) {
   const m = useLookup(f.ref);
-  const it = m && v !== '' ? m.get(Number(v)) : null;
   return (
-    <>
-      <input type="number" min="1" value={v} onChange={(e) => set(e.target.value)} required={!!f.req} />
-      <small className={it ? 'ok' : 'nota'}>{v === '' ? 'Escribe el número que aparece en la lista.' : it ? '→ ' + NOMBRE[f.ref](it) : m ? 'Ese número no existe.' : 'Buscando…'}</small>
-    </>
+    <select value={v} onChange={(e) => set(e.target.value)} required={!!f.req}>
+      <option value="">{m ? 'Elige…' : 'Cargando opciones…'}</option>
+      {m && [...m.values()].map((item) => <option key={item.id} value={item.id}>{NOMBRE[f.ref](item)}</option>)}
+    </select>
   );
 }
 
-function FormModal({ cfg, fila, onClose, onSaved }) {
+function FormModal({ cfg, fila, iniciales = {}, onClose, onSaved }) {
   const ui = useUI();
-  const [v, setV] = useState(() => (fila ? cfg.aForm(fila) : Object.fromEntries(cfg.campos.map((c) => [c.k, c.tipo === 'sel' ? c.op[0] : '']))));
+  const [v, setV] = useState(() => (fila ? cfg.aForm(fila) : {
+    ...Object.fromEntries(cfg.campos.map((c) => [c.k, c.tipo === 'sel' ? c.op[0] : ''])),
+    ...iniciales,
+  }));
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const guardar = async (e) => {
@@ -244,7 +246,8 @@ function FormModal({ cfg, fila, onClose, onSaved }) {
             {c.tipo === 'area' ? <textarea rows="3" maxLength="300" value={v[c.k]} onChange={(e) => setV({ ...v, [c.k]: e.target.value })} />
               : c.tipo === 'sel' ? <select value={v[c.k]} onChange={(e) => setV({ ...v, [c.k]: e.target.value })}>{c.op.map((o) => <option key={o}>{o}</option>)}</select>
               : c.tipo === 'ref' ? <RefInput f={c} v={v[c.k]} set={(x) => setV({ ...v, [c.k]: x })} />
-              : <input type={c.tipo === 'num' ? 'number' : c.tipo || 'text'} step={c.step} min={c.min} max={c.max} value={v[c.k]}
+              : <input type={c.tipo === 'num' ? 'number' : c.tipo || 'text'} step={c.step} min={c.min} max={c.max} maxLength={c.maxLength}
+                  pattern={c.pattern} inputMode={c.inputMode} title={c.title} value={v[c.k]}
                   onChange={(e) => setV({ ...v, [c.k]: e.target.value })} required={!!c.req} />}
           </label>
         ))}
@@ -259,7 +262,7 @@ function FormModal({ cfg, fila, onClose, onSaved }) {
 }
 
 const POR_PAGINA = 12;
-function Lista({ nombre, role }) {
+function Lista({ nombre, role, onCategory, username }) {
   const cfg = { ...RES[nombre], path: nombre };
   const ui = useUI();
   const admin = role === 'admin';
@@ -268,6 +271,7 @@ function Lista({ nombre, role }) {
   const [q, setQ] = useState('');
   const [pag, setPag] = useState(0);
   const [form, setForm] = useState(null);
+  const [categoriaProducto, setCategoriaProducto] = useState(null);
   const [compra, setCompra] = useState(null);
   const puedeComprar = nombre === 'productos' && (role === 'admin' || role === 'cliente');
   const cargar = useCallback(async () => {
@@ -305,6 +309,19 @@ function Lista({ nombre, role }) {
       {!err && !filas && <div className="vacio">Horneando la lista…</div>}
       {filas && (vis.length === 0
         ? <div className="vacio">{q ? 'Nada coincide con tu búsqueda.' : `Todavía no hay ${cfg.t.toLowerCase()}.` }</div>
+        : nombre === 'categorias'
+          ? <div className="colecciones categoria-cards">{pagina.map((r) => (
+            <article key={r.id} className="categoria-card">
+              <Postre nombre={r.nombre} className="categoria-imagen" />
+              <span className="categoria-id">Tipo #{String(r.id).padStart(3, '0')}</span>
+              <button className="lnk categoria-nombre" onClick={() => onCategory?.(r)}>{r.nombre}</button>
+              <span className="nota">Explora los postres de esta colección.</span>
+              {admin && <div className="acciones">
+                <button className="btn mini" onClick={() => setCategoriaProducto(r)}>Agregar postre</button>
+                <button className="btn mini suave" onClick={() => setForm(r)}>Editar nombre</button>
+                <button className="btn mini peligro" onClick={() => borrar(r)}>Eliminar</button>
+              </div>}
+            </article>))}</div>
         : <div className="tabla"><table>
           <thead><tr>{cfg.cols.map(([h]) => <th key={h}>{h}</th>)}{admin && <th>Acciones</th>}{puedeComprar && <th>Comprar</th>}</tr></thead>
           <tbody>{pagina.map((r) => (
@@ -323,8 +340,49 @@ function Lista({ nombre, role }) {
           <span>Página {pag + 1} de {paginas}</span>
           <button className="btn suave" disabled={pag + 1 >= paginas} onClick={() => setPag(pag + 1)}>Siguiente</button>
         </nav>)}
-      {compra && <Comprar producto={compra} onClose={() => setCompra(null)} />}
+      {compra && <Comprar producto={compra} username={username} onClose={() => setCompra(null)} />}
       {form && <FormModal cfg={cfg} fila={form.id ? form : null} onClose={() => setForm(null)} onSaved={() => { setForm(null); cargar(); }} />}
+      {categoriaProducto && <FormModal cfg={{ ...RES.productos, path: 'productos' }} fila={null}
+        iniciales={{ categoriaId: String(categoriaProducto.id) }} onClose={() => setCategoriaProducto(null)}
+        onSaved={() => setCategoriaProducto(null)} />}
+    </section>
+  );
+}
+
+function CategoriaDetalle({ id, role, username, volver }) {
+  const [categoria, setCategoria] = useState(null);
+  const [productos, setProductos] = useState(null);
+  const [error, setError] = useState('');
+  const [compra, setCompra] = useState(null);
+  useEffect(() => {
+    let activo = true;
+    Promise.all([api(`/api/categorias/${id}`), api('/api/productos')])
+      .then(([c, p]) => {
+        if (!activo) return;
+        setCategoria(c);
+        setProductos(p.filter((x) => Number(x.categoria?.id) === Number(id)));
+      })
+      .catch((x) => { if (activo) setError(x.message); });
+    return () => { activo = false; };
+  }, [id]);
+  return (
+    <section>
+      <header className="cabeza banner">
+        <button className="btn suave" onClick={volver}>Volver</button>
+        <div className="tit"><h1>{categoria?.nombre || 'Cargando categoría…'}</h1><p className="nota">Postres disponibles en esta categoría.</p></div>
+      </header>
+      {error && <div className="vacio error">{error}</div>}
+      {!productos && !error && <div className="vacio">Cargando postres…</div>}
+      {productos?.length === 0 && <div className="vacio">Todavía no hay postres en esta categoría.</div>}
+      {productos?.length > 0 && <div className="colecciones">
+        {productos.map((p) => <article className="coleccion" key={p.id}>
+          <Postre id={p.id} nombre={p.nombre} /><b>{p.nombre}</b>
+          <span className="nota">{money(p.precio)}</span>
+          {p.descripcion && <p>{p.descripcion}</p>}
+          {(role === 'cliente' || role === 'admin') && <button className="btn mini" onClick={() => setCompra(p)}>Comprar</button>}
+        </article>)}
+      </div>}
+      {compra && <Comprar producto={compra} username={username} onClose={() => setCompra(null)} />}
     </section>
   );
 }
@@ -370,7 +428,11 @@ function MisDatos({ onCambio }) {
       {d.cancelado ? <p className="nota">Estos datos ya fueron cancelados: no se pueden modificar.</p> : edit ? (
         <form onSubmit={rectificar}>
           {[['nombre', 'Nombre'], ['email', 'Correo'], ['telefono', 'Teléfono']].map(([k, l]) => (
-            <label className="campo" key={k}>{l}<input value={edit[k] ?? ''} onChange={(e) => setEdit({ ...edit, [k]: e.target.value })} required={k !== 'telefono'} /></label>))}
+            <label className="campo" key={k}>{l}<input type={k === 'email' ? 'email' : k === 'telefono' ? 'tel' : 'text'} value={edit[k] ?? ''}
+              maxLength={k === 'nombre' ? 100 : k === 'email' ? 150 : 20}
+              pattern={k === 'telefono' ? '(\\+?52)?[0-9\\s()\\-]{10,18}' : undefined}
+              inputMode={k === 'telefono' ? 'tel' : undefined}
+              onChange={(e) => setEdit({ ...edit, [k]: e.target.value })} required={k !== 'telefono'} /></label>))}
           <div className="acciones"><button type="button" className="btn suave" onClick={() => setEdit(null)}>Cancelar</button><button className="btn" disabled={busy}>Guardar corrección</button></div>
         </form>
       ) : (
@@ -438,9 +500,25 @@ function Inicio({ p, role, ir }) {
   );
 }
 
+function CuentaPerfil({ p, salir, recargar, ui }) {
+  const [seccion, setSeccion] = useState('datos');
+  return (
+    <section className="ajustes-cuenta">
+      <header className="cabeza banner">
+        <div className="tit"><h1>Cuenta y perfil</h1><p className="nota">Administra tus datos personales y la seguridad de acceso desde un solo lugar.</p></div>
+      </header>
+      <div className="tabs-cuenta" role="tablist" aria-label="Configuración de cuenta">
+        <button role="tab" aria-selected={seccion === 'datos'} className={seccion === 'datos' ? 'on' : ''} onClick={() => setSeccion('datos')}>Datos personales</button>
+        <button role="tab" aria-selected={seccion === 'acceso'} className={seccion === 'acceso' ? 'on' : ''} onClick={() => setSeccion('acceso')}>Acceso y seguridad</button>
+      </div>
+      {seccion === 'datos' ? <Perfil ui={ui} /> : <Cuenta p={p} salir={salir} recargar={recargar} />}
+    </section>
+  );
+}
+
 function Cuenta({ p, salir, recargar }) {
   const ui = useUI();
-  const [n, setN] = useState(p.nombre);
+  const [n, setN] = useState({ nombre: p.nombre, passwordActual: '' });
   const [pw, setPw] = useState({ passwordActual: '', passwordNueva: '' });
   const [us, setUs] = useState({ usernameNuevo: '', passwordActual: '' });
   const [err, setErr] = useState({});
@@ -450,26 +528,28 @@ function Cuenta({ p, salir, recargar }) {
   };
   return (
     <section>
-      <header className="cabeza banner"><span className="icono-sec" aria-hidden="true">{ICONO.cuenta}</span><div className="tit"><h1>Mi cuenta</h1><p className="nota">Usuario actual: <b>{p.username}</b></p></div></header>
-      <div className="rejilla dos">
-        <form className="tarjeta" onSubmit={run('n', async () => { await api('/api/auth/perfil', { method: 'PUT', body: { nombre: n } }); ui.toast('Listo: tu nombre se actualizó.'); recargar(); })}>
-          <h3>Mi nombre</h3>
-          <label className="campo">Nombre que se muestra<input value={n} maxLength="100" onChange={(e) => setN(e.target.value)} required /></label>
+      <header className="cabeza banner"><span className="icono-sec" aria-hidden="true">{ICONO.cuenta}</span><div className="tit"><h2>Acceso y seguridad</h2><p className="nota">Usuario actual: <b>{p.username}</b>. Confirma tu contraseña actual para proteger cada cambio.</p></div></header>
+      <div className="rejilla cuenta-acceso">
+        <form className="tarjeta" onSubmit={run('n', async () => { await api('/api/auth/perfil', { method: 'PUT', body: n }); ui.toast('Listo: tu nombre se actualizó.'); setN({ ...n, passwordActual: '' }); recargar(); })}>
+          <h3>Nombre visible</h3><p className="nota">Es el nombre que aparece en tu saludo. No cambia tu usuario ni los datos de entrega.</p>
+          <label className="campo">Nombre visible<input value={n.nombre} maxLength="100" onChange={(e) => setN({ ...n, nombre: e.target.value })} required /></label>
+          <label className="campo">Contraseña actual<input type="password" value={n.passwordActual} onChange={(e) => setN({ ...n, passwordActual: e.target.value })} required autoComplete="current-password" /></label>
           {err.n && <p className="error" role="alert">{err.n}</p>}<button className="btn">Guardar nombre</button>
         </form>
         <form className="tarjeta" onSubmit={run('p', async () => { await api('/api/auth/cambiar-password', { method: 'PUT', body: pw }); ui.toast('Contraseña cambiada. Entra de nuevo con la nueva.'); salir(); })}>
           <h3>Cambiar contraseña</h3>
           <label className="campo">Contraseña actual<input type="password" value={pw.passwordActual} onChange={(e) => setPw({ ...pw, passwordActual: e.target.value })} required /></label>
-          <label className="campo">Contraseña nueva (mínimo 12 caracteres)<input type="password" minLength="12" value={pw.passwordNueva} onChange={(e) => setPw({ ...pw, passwordNueva: e.target.value })} required /></label>
+          <label className="campo">Contraseña nueva (12 a 72 caracteres)<input type="password" minLength="12" maxLength="72" value={pw.passwordNueva} onChange={(e) => setPw({ ...pw, passwordNueva: e.target.value })} required /></label>
           {err.p && <p className="error" role="alert">{err.p}</p>}<button className="btn">Cambiar contraseña</button>
         </form>
         <form className="tarjeta" onSubmit={run('u', async () => { await api('/api/auth/cambiar-usuario', { method: 'PUT', body: us }); ui.toast('Usuario cambiado. Entra de nuevo con el nuevo.'); salir(); })}>
-          <h3>Cambiar nombre de usuario</h3>
-          <label className="campo">Usuario nuevo<input value={us.usernameNuevo} onChange={(e) => setUs({ ...us, usernameNuevo: e.target.value })} required /></label>
+          <h3>Usuario de inicio</h3><p className="nota">Este es el identificador que escribes para iniciar sesión.</p>
+          <label className="campo">Nuevo usuario<input value={us.usernameNuevo} onChange={(e) => setUs({ ...us, usernameNuevo: e.target.value })} minLength="3" maxLength="50" pattern="[A-Za-z0-9_.@-]{3,50}" title="Usa de 3 a 50 letras, números, punto, guion, guion bajo o arroba." required /></label>
           <label className="campo">Contraseña actual<input type="password" value={us.passwordActual} onChange={(e) => setUs({ ...us, passwordActual: e.target.value })} required /></label>
           {err.u && <p className="error" role="alert">{err.u}</p>}<button className="btn">Cambiar usuario</button>
         </form>
       </div>
+      <CodigoRecuperacion ui={ui} />
     </section>
   );
 }
@@ -477,18 +557,55 @@ function Cuenta({ p, salir, recargar }) {
 /* ───────── Estructura ───────── */
 function Panel({ p, salir, recargar }) {
   const role = rolDe(p.roles);
-  const [pag, setPag] = useState('inicio');
+  const [pag, setPag] = useState(() => {
+    const q = new URLSearchParams(window.location.search);
+    if (q.has('detalleCompra')) return `detalleCompra:${q.get('detalleCompra')}`;
+    if (q.has('detalleLocal')) return `detalleLocal:${q.get('detalleLocal')}`;
+    return 'inicio';
+  });
   const [expira, setExpira] = useState(null);
   const [offline, setOffline] = useState(!navigator.onLine);
   const resolver = useRef(null);
   const ui = useUI();
   useEffect(() => {
-    const q = new URLSearchParams(window.location.search);
-    if (q.get('pago') && q.get('tx')) {
+    const procesarRetornoPago = () => {
+      const q = new URLSearchParams(window.location.search);
+      if (q.has('detalleCompra') || q.has('detalleLocal')) window.history.replaceState({}, '', window.location.pathname);
+      const pago = q.get('pago'), tx = q.get('tx');
+      if (!pago || !tx) return;
       window.history.replaceState({}, '', window.location.pathname);
-      if (q.get('pago') === 'ok') api(`/api/compras/${q.get('tx')}/capturar`, { method: 'POST', body: {} }).then((r) => { ui.toast(r.mensaje); setPag('compras'); }).catch((x) => ui.toast(x.message, 'error'));
-      else ui.toast('Cancelaste el pago. No se hizo ningún cobro.', 'error');
-    }
+      const volverACompras = () => setPag('compras');
+      if (pago === 'ok') {
+        api(`/api/compras/${tx}/capturar`, { method: 'POST', body: {} })
+          .then((r) => { ui.toast(r.mensaje); volverACompras(); })
+          .catch((x) => { ui.toast(x.message, 'error'); volverACompras(); });
+      } else if (pago === 'mercadopago') {
+        const paymentId = q.get('payment_id') || q.get('collection_id');
+        if (!paymentId) { ui.toast('Mercado Pago no devolvió el identificador de pago; revisa Mis compras.', 'error'); volverACompras(); return; }
+        api(`/api/compras/${tx}/mercadopago/confirmar?paymentId=${encodeURIComponent(paymentId)}`, { method: 'POST' })
+          .then((r) => { ui.toast(r.mensaje); volverACompras(); })
+          .catch((x) => { ui.toast(x.message, 'error'); volverACompras(); });
+      } else if (pago === 'stripe') {
+        const sessionId = q.get('session_id');
+        if (!sessionId) { ui.toast('Stripe no devolvió la sesión de pago. Revisa Mis compras antes de intentarlo otra vez.', 'error'); volverACompras(); return; }
+        api(`/api/compras/${tx}/stripe/confirmar?sessionId=${encodeURIComponent(sessionId)}`, { method: 'POST' })
+          .then((r) => { ui.toast(r.mensaje); volverACompras(); })
+          .catch((x) => { ui.toast(x.message, 'error'); volverACompras(); });
+      } else if (pago === 'pendiente') {
+        ui.toast('El pago sigue pendiente en la pasarela. Revisa Mis compras; no vuelvas a pagar si ya completaste el proceso.');
+        volverACompras();
+      } else if (pago === 'cancelado') {
+        ui.toast('Regresaste sin completar el pago. La compra sigue pendiente y puedes retomarla desde Mis compras.');
+        volverACompras();
+      } else {
+        ui.toast('El pago no fue aprobado. La compra no está pagada; revisa Mis compras para reintentarlo.', 'error');
+        volverACompras();
+      }
+    };
+    procesarRetornoPago();
+    const alMostrar = (evento) => { if (evento.persisted) procesarRetornoPago(); };
+    window.addEventListener('pageshow', alMostrar);
+    return () => window.removeEventListener('pageshow', alMostrar);
   }, []);
   useEffect(() => {
     setExpiredHandler(() => new Promise((ok, no) => { resolver.current = { ok, no }; setExpira(true); }));
@@ -497,7 +614,7 @@ function Panel({ p, salir, recargar }) {
     return () => { setExpiredHandler(null); window.removeEventListener('online', on); window.removeEventListener('offline', off); };
   }, []);
   const menu = role === 'repostero' ? [['inicio', 'Inicio'], ['chef', 'Mis pedidos'], ['pasteles', 'Mis pasteles'], ['encuesta', role === 'admin' ? 'Opiniones' : 'Encuesta'], ['cuenta', 'Mi cuenta']] : [['inicio', 'Inicio'], ['productos', 'Productos'], ['categorias', 'Tipos de postre'], ...(role !== 'cliente' ? [['reposteros', 'Reposteros']] : []),
-    ...(role === 'admin' ? [['clientes', 'Clientes'], ['pedidos', 'Pedidos']] : []), ...(role === 'admin' || role === 'cliente' ? [['compras', 'Mis compras']] : []), ...(role === 'admin' ? [['usuarios', 'Usuarios'], ['privacidad', 'Privacidad']] : []), ['encuesta', role === 'admin' ? 'Opiniones' : 'Encuesta'], ['cuenta', 'Mi cuenta']];
+    ...(role === 'admin' ? [['clientes', 'Clientes'], ['pedidos', 'Pedidos'], ['pagos', 'Pasarelas']] : []), ...(role === 'admin' || role === 'cliente' ? [['compras', 'Mis compras']] : []), ...(role === 'admin' ? [['usuarios', 'Usuarios'], ['privacidad', 'Privacidad']] : []), ['encuesta', role === 'admin' ? 'Opiniones' : 'Encuesta'], ['cuenta', 'Mi cuenta']];
   return (
     <div className="app" data-rol={role}>
       <header className="tope">
@@ -511,21 +628,25 @@ function Panel({ p, salir, recargar }) {
         </div>
       </header>
       <nav className="menu" aria-label="Secciones">
-        {menu.map(([k, l]) => <button key={k} className={pag === k ? 'on' : ''} aria-current={pag === k} onClick={() => setPag(k)}><span aria-hidden="true">{ICONO[k]}</span>{l}</button>)}
+        {menu.map(([k, l]) => <button key={k} className={pag === k ? 'on' : ''} aria-current={pag === k} onClick={() => setPag(k)}><span aria-hidden="true">{k === 'pagos' ? '💳' : ICONO[k]}</span>{l}</button>)}
       </nav>
-      {offline && <div className="aviso" role="alert">Sin internet. Cuando vuelva la conexión, podrás reintentar lo que estabas haciendo.</div>}
+      {offline && <div className="aviso" role="alert">Sin conexión. Las compras que guardes quedarán pendientes en este dispositivo; ningún pago se confirma hasta completar el proceso en línea.</div>}
       <main className="contenido">
         {pag === 'inicio' && (role === 'repostero' ? <InicioChef p={p} ir={setPag} /> : (role === 'admin' ? <InicioAdmin p={p} ir={setPag} /> : <InicioCliente p={p} ir={setPag} />))}
-        {RES[pag] && <Lista key={pag} nombre={pag} role={role} />}
-        {pag === 'compras' && <Compras role={role} />}
+        {RES[pag] && <Lista key={pag} nombre={pag} role={role} username={p.username} onCategory={(c) => setPag(`categoria:${c.id}`)} />}
+        {pag.startsWith('categoria:') && <CategoriaDetalle id={pag.slice('categoria:'.length)} role={role} username={p.username} volver={() => setPag('inicio')} />}
+        {pag === 'compras' && <Compras role={role} username={p.username} />}
+        {pag === 'pagos' && role === 'admin' && <ConfiguracionPasarelas />}
+        {pag.startsWith('detalleCompra:') && <DetalleCompra id={pag.slice('detalleCompra:'.length)} username={p.username} volver={() => setPag('compras')} />}
+        {pag.startsWith('detalleLocal:') && <DetalleCompra id={pag.slice('detalleLocal:'.length)} username={p.username} local volver={() => setPag('compras')} />}
         {pag === 'encuesta' && <Encuesta role={role} />}
         {pag === 'chef' && role === 'repostero' && <PedidosChef ui={ui} />}
         {pag === 'pasteles' && role === 'repostero' && <PastelesChef />}
         {pag === 'usuarios' && role === 'admin' && <Usuarios ui={ui} />}
         {pag === 'privacidad' && role === 'admin' && <Privacidad role={role} ir={setPag} />}
-        {pag === 'cuenta' && <><Cuenta p={p} salir={salir} recargar={recargar} /><Perfil ui={ui} /></>}
+        {pag === 'cuenta' && <CuentaPerfil p={p} salir={salir} recargar={recargar} ui={ui} />}
       </main>
-      <footer className="pie">Proyecto escolar: no se realizan cobros reales · Tus datos se tratan según el <a href="/aviso-privacidad.html" target="_blank" rel="noreferrer">aviso de privacidad</a></footer>
+      <footer className="pie">Sweet Rebel · Pagos disponibles procesados por su pasarela · <a href="/aviso-privacidad.html" target="_blank" rel="noreferrer">Aviso de privacidad</a></footer>
       {expira && <ReLogin user={p.username} onDone={() => { setExpira(null); resolver.current.ok(); }} onExit={() => { resolver.current.no(new Error('Sesión cerrada')); salir(); }} />}
     </div>
   );
@@ -542,100 +663,422 @@ export default function App() {
 }
 
 
-/* ───────── Compras y pagos (PayPal) ───────── */
-const ESTADO_COMPRA = { PENDIENTE: 'Pendiente', PAGADA: 'Pagada', FALLIDA: 'Fallida', REEMBOLSADA: 'Reembolsada' };
+/* ───────── Compras y pagos ───────── */
+const ESTADO_COMPRA = { INCOMPLETA: 'Pendiente de conexión · en este dispositivo', PENDIENTE: 'Pendiente', PAGADA: 'Pagada', FALLIDA: 'Fallida', REEMBOLSADA: 'Reembolsada' };
+const folioCompra = (id, local) => {
+  if (id != null && /^\d+$/.test(String(id))) return `Folio de compra #${id}`;
+  return local ? 'Borrador guardado en este dispositivo' : 'Compra registrada';
+};
 
-const METODOS = [['PAYPAL', 'PayPal', '🅿️'], ['STRIPE', 'Tarjeta (Stripe)', '💳'], ['MERCADOPAGO', 'Mercado Pago', '🤝'], ['OXXO', 'Efectivo en OXXO', '🏪']];
-
-/* PAGOS SIMULADOS. Aquí NO se cobra nada ni se envían datos de tarjeta.
-   Integración real: PayPal ya está en el backend (PayPalService, PAYPAL_MODE=sandbox|live);
-   Stripe (Payment Intents), Mercado Pago (Checkout Pro) y OXXO (referencia vía pasarela) se conectarían
-   en ComprasController.crear/capturar, sustituyendo el bloque "SIM-". */
-function Comprar({ producto, onClose }) {
-  const ui = useUI();
+const METODOS = [['PAYPAL', 'PayPal', 'P'], ['STRIPE', 'Tarjeta', 'CARD'], ['MERCADOPAGO', 'Mercado Pago', 'MP'], ['OXXO', 'OXXO', 'O']];
+const CLAVE_COMPRAS_LOCAL = 'sweetrebel:compras:';
+const nuevaReferenciaCompra = () => globalThis.crypto?.randomUUID?.()
+  || 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = Math.floor(Math.random() * 16);
+    return (c === 'x' ? r : (r & 3) | 8).toString(16);
+  });
+function comprasLocales(username) {
+  try {
+    const data = JSON.parse(localStorage.getItem(CLAVE_COMPRAS_LOCAL + username) || '[]');
+    return Array.isArray(data) ? data : [];
+  } catch { return []; }
+}
+function guardarComprasLocales(username, filas) {
+  try {
+    localStorage.setItem(CLAVE_COMPRAS_LOCAL + username, JSON.stringify(filas));
+    return true;
+  } catch {
+    return false;
+  }
+}
+function Comprar({ producto, username, onClose }) {
   const [cant, setCant] = useState(1);
   const [metodo, setMetodo] = useState('PAYPAL');
-  const [tx, setTx] = useState(null);
-  const [rechazo, setRechazo] = useState(false);
-  const [mp, setMp] = useState('cuenta');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+  const [redirectando, setRedirectando] = useState(false);
+  const [config, setConfig] = useState(null);
+  const [configError, setConfigError] = useState('');
+  const [servidorNoDisponible, setServidorNoDisponible] = useState(false);
+  const [conectado, setConectado] = useState(navigator.onLine);
+  const clientReference = useRef(nuevaReferenciaCompra());
+  const esperandoPasarela = useRef(false);
+  useEffect(() => {
+    const alRegresar = () => {
+      if (!esperandoPasarela.current) return;
+      esperandoPasarela.current = false;
+      setBusy(false);
+      setRedirectando(false);
+      setErr('Regresaste de la pasarela. Revisa el estado en Mis compras antes de intentar otro pago.');
+    };
+    const alMostrar = (evento) => { if (evento.persisted) alRegresar(); };
+    const alCambiarVisibilidad = () => { if (document.visibilityState === 'visible') alRegresar(); };
+    window.addEventListener('pageshow', alMostrar);
+    document.addEventListener('visibilitychange', alCambiarVisibilidad);
+    return () => {
+      window.removeEventListener('pageshow', alMostrar);
+      document.removeEventListener('visibilitychange', alCambiarVisibilidad);
+    };
+  }, []);
+  const cambiarMetodo = (siguiente) => {
+    if (siguiente !== metodo) clientReference.current = nuevaReferenciaCompra();
+    setMetodo(siguiente);
+    setErr('');
+  };
+  const cambiarCantidad = (siguiente) => {
+    if (siguiente !== String(cant)) clientReference.current = nuevaReferenciaCompra();
+    setCant(siguiente);
+    setErr('');
+  };
+  const cargarConfig = useCallback(async () => {
+    try {
+      const r = await api('/api/compras/config');
+      setConfig(r);
+      setConfigError('');
+      setServidorNoDisponible(false);
+      const disponible = METODOS.find(([codigo]) => r[codigo.toLowerCase()]?.disponible && !r[codigo.toLowerCase()]?.simulado);
+      setMetodo((actual) => r[actual.toLowerCase()]?.disponible && !r[actual.toLowerCase()]?.simulado ? actual : disponible?.[0] || '');
+    } catch (x) {
+      setConfigError(x.message);
+      setServidorNoDisponible(x.status === 0 || x.status >= 500);
+    }
+  }, []);
+  useEffect(() => {
+    const alDesconectar = () => setConectado(false);
+    const alConectar = () => { setConectado(true); cargarConfig(); };
+    window.addEventListener('offline', alDesconectar);
+    window.addEventListener('online', alConectar);
+    cargarConfig();
+    return () => {
+      window.removeEventListener('offline', alDesconectar);
+      window.removeEventListener('online', alConectar);
+    };
+  }, [cargarConfig]);
+  const configuracionMetodo = metodo ? config?.[metodo.toLowerCase()] : null;
+  const metodoListo = !!(configuracionMetodo?.disponible && !configuracionMetodo.simulado);
+  const modoPendienteLocal = !conectado || servidorNoDisponible;
+  const metodosListos = METODOS.filter(([codigo]) => config?.[codigo.toLowerCase()]?.disponible && !config[codigo.toLowerCase()]?.simulado);
+  const guardarPendienteLocal = (server = {}) => {
+    const actual = comprasLocales(username).filter((x) => x.clientReference !== clientReference.current);
+    actual.unshift({
+      id: clientReference.current,
+      clientReference: clientReference.current,
+      serverTransactionId: server.transaccionId || null,
+      checkoutUrl: server.aprobarUrl || null,
+      username,
+      productoId: producto.id,
+      producto: producto.nombre,
+      precio: Number(producto.precio),
+      cantidad: Number(cant),
+      metodo,
+      monto: Number(server.monto ?? Number(producto.precio) * Number(cant)),
+      estado: server.transaccionId ? 'PENDIENTE' : 'INCOMPLETA',
+      creada: new Date().toISOString(),
+    });
+    return guardarComprasLocales(username, actual);
+  };
   const iniciar = async (e) => {
     e.preventDefault(); setBusy(true); setErr('');
+    if (modoPendienteLocal) {
+      const guardada = guardarPendienteLocal();
+      setErr(guardada
+        ? 'No hay conexión con el servidor. Guardamos la compra como pendiente en este dispositivo; no se inició ni confirmó ningún pago. Revisa la conexión y vuelve a Mis compras para reintentarlo.'
+        : 'No hay conexión con el servidor y no se pudo guardar la compra localmente. No se inició ni confirmó ningún pago.');
+      setBusy(false);
+      return;
+    }
+    if (!metodoListo) {
+      setErr('Este método todavía no está habilitado para recibir pagos. No se inició ningún cobro.');
+      setBusy(false);
+      return;
+    }
     try {
-      const r = await api('/api/compras', { method: 'POST', body: { productoId: producto.id, cantidad: Number(cant), metodo } });
-      if (r.aprobarUrl) { window.location.href = r.aprobarUrl; return; }   // PayPal sandbox/live
-      setTx(r);
-    } catch (x) { setErr(x.message); }
+      const r = await api('/api/compras', { method: 'POST', body: { productoId: producto.id, cantidad: Number(cant), metodo, clientReference: clientReference.current } });
+      const localGuardada = guardarPendienteLocal(r);
+      if (r.aprobarUrl) {
+        esperandoPasarela.current = true;
+        setRedirectando(true);
+        window.location.assign(r.aprobarUrl);
+        return;
+      }
+      setErr(localGuardada
+        ? 'La pasarela no devolvió un enlace de pago. No se completó ningún cobro; revisa Mis compras o contacta a la pastelería antes de volver a intentarlo.'
+        : 'La pasarela no devolvió un enlace de pago y no pudimos guardar el registro en este dispositivo. No se completó ningún cobro.');
+    } catch (x) {
+      if (x.status === 0) {
+        const guardada = guardarPendienteLocal();
+        setErr(guardada
+          ? 'No pudimos comunicarnos con el servidor. Guardamos esta compra como pendiente de conexión en este dispositivo. El pago no está confirmado; revisa tu conexión y Mis compras antes de reintentar.'
+          : 'No pudimos comunicarnos con el servidor y no se pudo guardar la compra en este dispositivo. El pago no está confirmado; revisa tu conexión y Mis compras antes de volver a intentarlo.');
+      } else if (x.status >= 500) {
+        const guardada = guardarPendienteLocal();
+        setErr(guardada
+          ? 'El servidor no respondió. Guardamos esta compra como pendiente de conexión en este dispositivo. El pago no está confirmado: revisa tu conexión y Mis compras antes de reintentar.'
+          : 'El servidor no respondió y no pudimos guardar la compra en este dispositivo. El pago no está confirmado; revisa tu conexión y Mis compras antes de volver a intentarlo.');
+      } else setErr(x.message);
+    }
     setBusy(false);
   };
-  const pagar = async (e) => {
-    e?.preventDefault(); setBusy(true); setErr('');
-    try { const r = await api(`/api/compras/${tx.transaccionId}/capturar`, { method: 'POST', body: { simularRechazo: rechazo } }); ui.toast(r.mensaje); onClose(); }
-    catch (x) { setErr(x.message); setTx(null); }
-    setBusy(false);
-  };
-  const nombreMetodo = METODOS.find((m) => m[0] === metodo)[1];
   return (
-    <Modal title={`Comprar: ${producto.nombre}`} onClose={onClose}>
-      {!tx ? (
-        <form onSubmit={iniciar}>
-          <p>Precio por pieza: <b>{money(producto.precio)}</b></p>
-          <label className="campo">Cantidad (1 a 1000)<input type="number" min="1" max="1000" value={cant} onChange={(e) => setCant(e.target.value)} required /></label>
-          <p>Total: <b>{money(Number(producto.precio) * (Number(cant) || 0))}</b></p>
-          <div className="metodos" role="radiogroup" aria-label="Método de pago">
-            {METODOS.map(([k, l, ic]) => <label key={k} className={metodo === k ? 'sel' : ''}><input type="radio" name="metodo" checked={metodo === k} onChange={() => setMetodo(k)} /><span aria-hidden="true">{ic}</span>{l}</label>)}
-          </div>
-          {err && <p className="error" role="alert">{err}</p>}
-          <div className="acciones"><button type="button" className="btn suave" onClick={onClose}>Cancelar</button><button className="btn" disabled={busy}>{busy ? 'Preparando…' : 'Continuar'}</button></div>
-        </form>
-      ) : (
-        <form onSubmit={pagar}>
-          <h3>{nombreMetodo} · {money(tx.monto)}</h3>
-          {metodo === 'PAYPAL' && <p>Pagarás con tu saldo o tarjeta vinculada a PayPal.</p>}
-          {metodo === 'STRIPE' && <>
-            <label className="campo">Nombre en la tarjeta<input placeholder="Como aparece en la tarjeta" autoComplete="off" required /></label>
-            <label className="campo">Número de tarjeta<input inputMode="numeric" placeholder="0000 0000 0000 0000" autoComplete="off" maxLength="19" required /></label>
-            <div className="dos-col"><label className="campo">Vence<input placeholder="MM/AA" maxLength="5" required /></label><label className="campo">CVC<input inputMode="numeric" placeholder="123" maxLength="4" required /></label></div></>}
-          {metodo === 'MERCADOPAGO' && <div className="metodos">{[['cuenta', 'Dinero en cuenta'], ['tarjeta', 'Tarjeta guardada'], ['msi', '3 meses sin intereses']].map(([k, l]) => <label key={k} className={mp === k ? 'sel' : ''}><input type="radio" name="mp" checked={mp === k} onChange={() => setMp(k)} />{l}</label>)}</div>}
-          {metodo === 'OXXO' && <div className="ficha-oxxo"><p className="nota">Referencia de pago (de práctica)</p><div className="ref">{('9' + String(tx.transaccionId).padStart(13, '0')).replace(/(.{4})/g, '$1 ').trim()}</div>
-            <p>Monto: <b>{money(tx.monto)}</b> · Vigencia: 72 horas</p><p className="nota">Presenta esta referencia en cualquier tienda OXXO. Cuando pagues, confirma aquí.</p></div>}
-          {err && <p className="error" role="alert">{err}</p>}
-          <div className="acciones"><button type="button" className="btn suave" onClick={onClose}>Pagar después</button><button className="btn" disabled={busy}>{busy ? 'Procesando…' : metodo === 'OXXO' ? 'Ya pagué en OXXO' : `Pagar ${money(tx.monto)}`}</button></div>
-        </form>)}
+    <Modal title="Finalizar compra" onClose={onClose} className="modal-pago">
+      <form onSubmit={iniciar}>
+        {modoPendienteLocal && <p className="aviso-pago" role="status">No se puede contactar con el servidor. Puedes guardar esta compra para reintentarla después; no se realizará ningún cobro ahora.</p>}
+        <div className="resumen-compra"><Postre id={producto.id} nombre={producto.nombre} /><div><b>{producto.nombre}</b><span>{money(producto.precio)} por pieza</span></div></div>
+        <label className="campo">Cantidad<input type="number" min="1" max="1000" step="1" value={cant} onChange={(e) => cambiarCantidad(e.target.value)} required /></label>
+        <div className="total-compra"><span>Total a pagar</span><strong>{money(Number(producto.precio) * (Number(cant) || 0))}</strong></div>
+        <fieldset className="metodos"><legend>Elige una forma de pago</legend>
+          {METODOS.map(([codigo, etiqueta, marca]) => {
+            const estado = config?.[codigo.toLowerCase()];
+            const listo = !!(estado?.disponible && !estado.simulado);
+            const bloqueado = !listo && !modoPendienteLocal;
+            const descripcion = modoPendienteLocal ? 'Se validará cuando vuelva la conexión'
+              : !estado ? 'Comprobando disponibilidad…'
+                : listo ? 'Pago seguro disponible'
+                  : estado.simulado ? 'Desactivado en modo simulado' : 'No configurado en el servidor';
+            return <label key={codigo} className={`${metodo === codigo ? 'sel' : ''} ${bloqueado ? 'deshabilitado' : ''}`}>
+              <input type="radio" name="metodo" value={codigo} checked={metodo === codigo} onChange={() => cambiarMetodo(codigo)} disabled={bloqueado} />
+              <span className={`marca-pago marca-${codigo.toLowerCase()}`} aria-hidden="true">{marca}</span>
+              <span className="metodo-info"><b>{etiqueta}</b><small>{descripcion}</small></span>
+              {bloqueado && <span className="metodo-proximamente">{estado?.simulado ? 'Modo simulado' : 'No disponible'}</span>}
+            </label>;
+          })}
+        </fieldset>
+        {configError && <p className="error" role="alert">No pudimos consultar los métodos de pago: {configError}</p>}
+        {config && metodosListos.length === 0 && <p className="aviso-pago" role="status">Los pagos aún no están habilitados. No se realizará ningún cobro. La persona responsable del servidor debe conectar una pasarela; las claves no se configuran desde esta pantalla.</p>}
+        <p className="nota">La autorización del pago ocurre en el sitio seguro de la pasarela. Sweet Rebel no solicita ni almacena los datos de tu tarjeta.</p>
+        {redirectando && <p className="aviso-pago" role="status">Conectando con {METODOS.find(([codigo]) => codigo === metodo)?.[1] || 'la pasarela'}… No cierres esta página. Al regresar te mostraremos el estado de la compra.</p>}
+        {err && <p className="error" role="alert">{err}</p>}
+        <div className="acciones"><button type="button" className="btn suave" onClick={onClose}>Volver</button>
+          <button className="btn" disabled={busy || (!metodoListo && !modoPendienteLocal)}>{busy ? (redirectando ? `Abriendo ${METODOS.find(([codigo]) => codigo === metodo)?.[1] || 'pasarela'}…` : 'Preparando pago…') : modoPendienteLocal ? 'Guardar compra pendiente' : 'Ir a pagar'}</button></div>
+      </form>
     </Modal>
   );
 }
 
-function Compras({ role }) {
+function ConfiguracionPasarelas() {
+  const [config, setConfig] = useState(null);
+  const [error, setError] = useState('');
+  useEffect(() => { api('/api/compras/config').then(setConfig).catch((x) => setError(x.message)); }, []);
+  const metodos = [
+    { key: 'paypal', nombre: 'PayPal', ayuda: 'El cliente autoriza el pago en PayPal. Sweet Rebel confirma la captura con el servidor antes de registrar la compra como pagada.' },
+    { key: 'mercadopago', nombre: 'Mercado Pago', ayuda: 'Checkout Pro redirige al cliente a Mercado Pago. El servidor verifica el resultado; si queda pendiente, no se marca como pagado.' },
+    { key: 'stripe', nombre: 'Tarjeta (Stripe)', ayuda: 'El cliente ingresa sus datos en el Checkout seguro de Stripe. Sweet Rebel no almacena datos de tarjeta y confirma el resultado con Stripe.' },
+    { key: 'oxxo', nombre: 'OXXO', ayuda: 'Stripe genera un vale para pagar en tienda. La compra permanece pendiente hasta que Stripe notifica el pago; la confirmación puede tardar.' },
+  ];
+  return (
+    <section className="pasarelas-admin">
+      <header className="cabeza banner"><span className="icono-sec" aria-hidden="true">💳</span>
+        <div className="tit"><h1>Pasarelas de pago</h1><p className="nota">Estado actual y cómo funciona la confirmación de cada método.</p></div></header>
+      {error && <div className="vacio error">{error}</div>}
+      {!config && !error && <div className="vacio">Consultando la configuración del servidor…</div>}
+      {config && <div className="rejilla pasarelas-lista">
+        {metodos.map((m) => {
+          const estado = config[m.key];
+          const disponible = !!(estado?.disponible && !estado?.simulado);
+          const etiquetaEstado = disponible ? 'Activa' : estado?.simulado ? 'Modo simulado' : 'No configurada';
+          return <article className="tarjeta pasarela-admin" key={m.key}>
+            <div className="pasarela-admin-titulo"><h2>{m.nombre}</h2><span className={'estado-pasarela ' + (disponible ? 'activa' : 'inactiva')}>{etiquetaEstado}</span></div>
+            <p>{m.ayuda}</p>
+          </article>;
+        })}
+      </div>}
+    </section>
+  );
+}
+
+function Compras({ role, username }) {
   const ui = useUI();
   const admin = role === 'admin';
   const [filas, setFilas] = useState(null);
+  const [locales, setLocales] = useState(() => comprasLocales(username));
   const [err, setErr] = useState('');
+  const [detalle, setDetalle] = useState(null);
+  const [config, setConfig] = useState(null);
+  const cargarConfig = useCallback(() => api('/api/compras/config').then(setConfig).catch(() => setConfig({})), []);
+  useEffect(() => {
+    cargarConfig();
+    window.addEventListener('online', cargarConfig);
+    return () => window.removeEventListener('online', cargarConfig);
+  }, [cargarConfig]);
   const cargar = useCallback(async () => {
-    setErr(''); setFilas(null);
-    try { setFilas(await api(admin ? '/api/compras' : '/api/compras/mias')); } catch (x) { setErr(x.message); }
-  }, [admin]);
+    setErr('');
+    try {
+      const resultado = await api(admin ? '/api/compras' : '/api/compras/mias');
+      setFilas(resultado);
+      const estadosRemotos = new Map(resultado.map((x) => [String(x.id), x.estado]));
+      const restantes = comprasLocales(username).filter((x) => {
+        if (!x.serverTransactionId) return true;
+        const estado = estadosRemotos.get(String(x.serverTransactionId));
+        return estado == null || estado === 'PENDIENTE';
+      });
+      guardarComprasLocales(username, restantes);
+      setLocales(restantes);
+    } catch (x) {
+      setErr(x.message);
+      setFilas(null);
+      setLocales(comprasLocales(username));
+    }
+  }, [admin, username]);
   useEffect(() => { cargar(); }, [cargar]);
+  useEffect(() => {
+    const alVolver = () => { if (navigator.onLine) cargar(); };
+    window.addEventListener('online', alVolver);
+    return () => window.removeEventListener('online', alVolver);
+  }, [cargar]);
   const reembolsar = async (c) => {
     if (!(await ui.confirm({ title: 'Reembolsar compra', peligro: 1, si: 'Sí, reembolsar', text: `Se devolverá ${money(c.monto)} de la compra #${c.id}.` }))) return;
     try { ui.toast((await api(`/api/compras/${c.id}/reembolsar`, { method: 'POST' })).mensaje); cargar(); } catch (x) { ui.toast(x.message, 'error'); }
   };
+  const actualizarLocal = (id, patch) => {
+    const actualizados = comprasLocales(username).map((x) => x.id === id ? { ...x, ...patch } : x);
+    guardarComprasLocales(username, actualizados);
+    setLocales(actualizados);
+  };
+  const continuarRemota = async (compra) => {
+    try {
+      const r = await api(`/api/compras/${encodeURIComponent(compra.id)}/continuar`, { method: 'POST' });
+      if (!r.aprobarUrl) {
+        ui.toast('El servidor no devolvió un enlace de pago. La compra sigue pendiente y no se marcó como pagada.', 'error');
+        return;
+      }
+      window.location.assign(r.aprobarUrl);
+    } catch (x) {
+      ui.toast(x.message, 'error');
+    }
+  };
+  const reanudar = async (borrador) => {
+    try {
+      if (borrador.checkoutUrl) { window.location.href = borrador.checkoutUrl; return; }
+      const estado = config?.[borrador.metodo.toLowerCase()];
+      if (!estado?.disponible || estado.simulado) {
+        const proveedor = METODOS.find(([codigo]) => codigo === borrador.metodo)?.[1] || borrador.metodo;
+        const ayuda = admin ? 'Revisa Administración > Pasarelas.' : 'Contacta a la persona responsable del servidor.';
+        ui.toast(`${proveedor} no está habilitado en el servidor. No se inició ningún cobro. ${ayuda}`, 'error');
+        return;
+      }
+      const r = await api('/api/compras', { method: 'POST', body: {
+        productoId: borrador.productoId, cantidad: borrador.cantidad, metodo: borrador.metodo,
+        clientReference: borrador.clientReference,
+      } });
+      actualizarLocal(borrador.id, { serverTransactionId: r.transaccionId, checkoutUrl: r.aprobarUrl || null, monto: Number(r.monto), estado: 'PENDIENTE' });
+      if (r.aprobarUrl) { window.location.assign(r.aprobarUrl); return; }
+      ui.toast('La pasarela no proporcionó un enlace de pago. La compra sigue sin confirmarse y no debes repetir el pago; contacta a la administración.', 'error');
+    } catch (x) {
+      if (x.status === 0 || x.status >= 500) ui.toast('No pudimos comunicarnos con el servidor. La compra sigue pendiente y no se marcó como pagada; revisa tu conexión e inténtalo más tarde.', 'error');
+      else ui.toast(x.message, 'error');
+    }
+  };
+  const idsLocales = new Set(locales.filter((x) => x.serverTransactionId).map((x) => String(x.serverTransactionId)));
+  const filasVisibles = (filas || []).filter((x) => !idsLocales.has(String(x.id)));
+  const pendientesRemotos = filasVisibles.filter((x) => x.estado === 'PENDIENTE');
+  const borradorSeleccionado = detalle?.local ? locales.find((x) => x.id === detalle.id) : null;
+  const puedeContinuarBorrador = !!(borradorSeleccionado && (borradorSeleccionado.checkoutUrl
+    || (config?.[borradorSeleccionado.metodo?.toLowerCase()]?.disponible && !config?.[borradorSeleccionado.metodo?.toLowerCase()]?.simulado)));
   return (
+    <>
     <section>
       <header className="cabeza banner"><span className="icono-sec" aria-hidden="true">{ICONO.compras}</span>
-        <div className="tit"><h1>{admin ? 'Compras de todos' : 'Mis compras'}</h1><p className="nota">Historial de pagos. Estados: pendiente, pagada, fallida o reembolsada. Para comprar, ve a Productos y pulsa “Comprar”.</p></div></header>
+        <div className="tit"><h1>{admin ? 'Compras de todos' : 'Mis compras'}</h1><p className="nota">Consulta el estado y los detalles. Solo se abre la pasarela cuando tú eliges reanudar el pago.</p></div></header>
       {err && <div className="vacio error">{err} <button className="btn suave" onClick={cargar}>Reintentar</button></div>}
       {!err && !filas && <div className="vacio">Cargando compras…</div>}
-      {filas && (filas.length === 0 ? <div className="vacio">Todavía no hay compras.</div> : (
+      {locales.length > 0 && <section>
+        <h2>Compras guardadas en este dispositivo</h2>
+        <p className="nota">Estas compras están pendientes de conexión o de completar el pago. No se cobra nada en segundo plano; vuelve a intentarlo cuando el servidor y tu conexión estén disponibles.</p>
+        <div className="colecciones">{locales.map((b) => <article className="coleccion" key={b.id}>
+          <Postre id={b.productoId} nombre={b.producto} />
+          <b>{b.producto}</b>
+          <span>{money(b.monto || Number(b.precio) * Number(b.cantidad))} · {b.cantidad} pza.</span>
+          <span className="pildora">{ESTADO_COMPRA[b.estado] || b.estado}</span>
+          <span className="nota">{new Date(b.creada).toLocaleString('es-MX')}</span>
+          <div className="acciones">
+            <button className="btn mini suave" onClick={() => setDetalle({ id: b.id, local: true })}>Ver detalle</button>
+            <button className="btn mini" onClick={() => reanudar(b)} disabled={!b.checkoutUrl && !config?.[b.metodo?.toLowerCase()]?.disponible}>
+              {b.checkoutUrl ? 'Abrir pasarela' : config ? (config[b.metodo?.toLowerCase()]?.disponible ? 'Reintentar compra' : 'Pasarela no activa') : 'Verificando…'}
+            </button>
+          </div>
+          {config && !b.checkoutUrl && !config[b.metodo?.toLowerCase()]?.disponible && <small className="nota ayuda-pasarela">No se inició un cobro. La persona responsable del servidor debe habilitar este método.</small>}
+        </article>)}</div>
+      </section>}
+      {filas && pendientesRemotos.length > 0 && <section className="pendientes-remotos">
+        <h2>Pagos pendientes para continuar ({pendientesRemotos.length})</h2>
+        <p className="nota">Cada tarjeta corresponde a una compra pendiente de la tabla. Abre el detalle o continúa para volver a la sesión segura de pago.</p>
+        <div className="colecciones">{pendientesRemotos.map((c) => <article className="coleccion compra-pendiente" key={c.id}>
+          <Postre id={c.productoId} nombre={c.producto} />
+          <b>{c.producto}</b>
+          <span>{folioCompra(c.id, false)} · {c.cantidad} pza. · {METODOS.find((m) => m[0] === c.metodo)?.[1] || c.metodo}</span>
+          <strong>{money(c.monto)}</strong>
+          <span className="pildora PENDIENTE">Pendiente</span>
+          <div className="acciones">
+            <button className="btn mini suave" onClick={() => setDetalle({ id: c.id, local: false })}>Ver detalle</button>
+            <button className="btn mini" onClick={() => continuarRemota(c)}>Continuar compra</button>
+          </div>
+        </article>)}</div>
+      </section>}
+      {filas && filasVisibles.length === 0 && locales.length === 0 && <div className="vacio">Todavía no hay compras.</div>}
+      {filas && filasVisibles.length > 0 && (
         <div className="tabla"><table>
-          <thead><tr><th>#</th>{admin && <th>Usuario</th>}<th>Producto</th><th>Cant.</th><th>Método</th><th>Total</th><th>Estado</th><th>Fecha</th>{admin && <th>Acciones</th>}</tr></thead>
-          <tbody>{filas.map((c) => (
-            <tr key={c.id}><td data-l="#">{c.id}</td>{admin && <td data-l="Usuario">{c.username}</td>}<td data-l="Producto">{c.producto}</td><td data-l="Cant.">{c.cantidad}</td>
+          <thead><tr><th>Folio</th>{admin && <th>Usuario</th>}<th>Producto</th><th>Cant.</th><th>Método</th><th>Total</th><th>Estado</th><th>Fecha</th><th>Detalles</th>{admin && <th>Acciones</th>}</tr></thead>
+          <tbody>{filasVisibles.map((c) => (
+            <tr key={c.id}><td data-l="Folio">{folioCompra(c.id, false)}</td>{admin && <td data-l="Usuario">{c.username}</td>}<td data-l="Producto">{c.producto}</td><td data-l="Cant.">{c.cantidad}</td>
               <td data-l="Método">{METODOS.find((m) => m[0] === c.metodo)?.[1] || c.metodo}</td><td data-l="Total">{money(c.monto)}</td><td data-l="Estado"><span className={'pildora ' + c.estado}>{ESTADO_COMPRA[c.estado]}</span></td>
-              <td data-l="Fecha">{new Date(c.creada).toLocaleString('es-MX')}</td>
-              {admin && <td data-l="Acciones">{c.estado === 'PAGADA' && <button className="btn mini peligro" onClick={() => reembolsar(c)}>Reembolsar</button>}</td>}</tr>))}</tbody></table></div>))}
+              <td data-l="Fecha">{new Date(c.creada).toLocaleString('es-MX')}</td><td data-l="Detalles"><button className="btn mini suave" onClick={() => setDetalle({ id: c.id, local: false })}>Ver detalle</button></td>
+              {admin && <td data-l="Acciones">{c.estado === 'PAGADA' && <button className="btn mini peligro" onClick={() => reembolsar(c)}>Reembolsar</button>}</td>}</tr>))}</tbody></table></div>)}
     </section>
+    {detalle && <Modal title="Detalle de la compra" onClose={() => setDetalle(null)} className="modal-detalle">
+      <DetalleCompra id={detalle.id} local={detalle.local} username={username}
+        onContinuar={detalle.local ? reanudar : continuarRemota}
+        continuarDisponible={!detalle.local || puedeContinuarBorrador} />
+    </Modal>}
+    </>
+  );
+}
+
+function DetalleCompra({ id, local, username, volver, onContinuar, continuarDisponible = true }) {
+  const [compra, setCompra] = useState(null);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let activo = true;
+    if (local) {
+      const encontrada = comprasLocales(username).find((x) => x.id === id);
+      if (encontrada) setCompra(encontrada);
+      else setError('No encontramos este borrador de compra en el dispositivo.');
+      return () => { activo = false; };
+    }
+    api(`/api/compras/${encodeURIComponent(id)}`)
+      .then((r) => { if (activo) setCompra(r); })
+      .catch((x) => { if (activo) setError(x.message); });
+    return () => { activo = false; };
+  }, [id, local, username]);
+  const fecha = (v) => v ? new Date(v).toLocaleString('es-MX') : '—';
+  return (
+    <div className="detalle-compra">
+      {volver && <header className="detalle-cabecera"><div><h2>Compra {compra?.id ? `#${compra.id}` : ''}</h2><p className="nota">Resumen y estado actualizado.</p></div></header>}
+      {error && <div className="vacio error">{error}</div>}
+      {!compra && !error && <div className="vacio">Cargando detalle…</div>}
+      {compra && <>
+        <div className="detalle-resumen">
+          <Postre id={compra.productoId} nombre={compra.producto} />
+          <div><b>{compra.producto}</b><span>{folioCompra(local ? (compra.serverTransactionId ?? compra.id) : compra.id, local)} · {compra.cantidad} pieza(s)</span><strong>{money(compra.monto || Number(compra.precio) * Number(compra.cantidad))}</strong></div>
+          <span className={'pildora ' + compra.estado}>{ESTADO_COMPRA[compra.estado] || compra.estado}</span>
+        </div>
+        <dl>
+          <dt>Método de pago</dt><dd>{METODOS.find((m) => m[0] === compra.metodo)?.[1] || compra.metodo}</dd>
+          <dt>Creada</dt><dd>{fecha(compra.creada)}</dd>
+          <dt>Última actualización</dt><dd>{fecha(compra.actualizada)}</dd>
+          {compra.pedidoId && <><dt>Pedido asociado</dt><dd>#{compra.pedidoId}</dd></>}
+          {local && <><dt>Guardada en</dt><dd>Este dispositivo</dd></>}
+        </dl>
+        {local && <p className="nota">Este registro local no confirma un cobro. El pago solo se actualiza cuando la pasarela y el servidor confirman el resultado.</p>}
+        {onContinuar && (compra.estado === 'PENDIENTE' || compra.estado === 'INCOMPLETA') && (
+          <div className="acciones acciones-detalle">
+            <button className="btn" disabled={!continuarDisponible} onClick={() => onContinuar(compra)}>
+              {continuarDisponible ? (compra.checkoutUrl ? 'Abrir pasarela' : 'Continuar compra') : 'Pasarela no activa'}
+            </button>
+          </div>
+        )}
+      </>}
+      {volver && <div className="acciones"><button className="btn suave" onClick={volver}>Volver a Mis compras</button></div>}
+    </div>
   );
 }
 
@@ -681,7 +1124,7 @@ function Instalar() {
   };
   return (
     <>
-      <button className="btn suave mini" onClick={clic}>
+      <button className="btn suave mini instalar-app" onClick={clic}>
         {android && apk && !ev ? '📲 Descargar app' : '📲 Instalar app'}
       </button>
       {ayuda && (
@@ -738,7 +1181,6 @@ function Encuesta({ role }) {
   const [res, setRes] = useState(null);
   const cargarRes = useCallback(() => { if (role === 'admin') api('/api/encuesta/resumen').then(setRes).catch(() => {}); }, [role]);
   useEffect(() => {
-    api('/api/encuesta/mia').then((m) => { if (m.general) { setG(m.general); setF(m.facilidad); setC(m.comentario || ''); } }).catch(() => {});
     cargarRes();
   }, [cargarRes]);
   const enviar = async (e) => {
@@ -756,7 +1198,10 @@ function Encuesta({ role }) {
       {role !== 'admin' && <form className="tarjeta" onSubmit={enviar}>
         <h3>¿Qué tan satisfecho estás con la aplicación?</h3><Estrellas valor={g} set={setG} etiqueta="Satisfacción general" />
         <h3>¿Qué tan fácil fue usarla?</h3><Estrellas valor={f} set={setF} etiqueta="Facilidad de uso" />
-        <label className="campo">¿Qué mejorarías? (opcional)<textarea rows="3" maxLength="500" value={c} onChange={(e) => setC(e.target.value)} /></label>
+        <label className="campo">¿Qué mejorarías? (opcional)<textarea rows="3" maxLength="500" value={c}
+          onChange={(e) => { if (/^[\p{L}\p{M}\p{N}\s.,!?¡¿:;'"()/-]*$/u.test(e.target.value)) setC(e.target.value); }} />
+          <small className="nota">Usa letras, números y puntuación común; no se admiten etiquetas ni símbolos especiales.</small>
+          <small className="nota" aria-live="polite">{c.length}/500 caracteres</small></label>
         <button className="btn" disabled={busy}>{busy ? 'Enviando…' : 'Enviar mi opinión'}</button>
       </form>}
       {role === 'admin' && res && (
